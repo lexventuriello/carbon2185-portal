@@ -1,0 +1,957 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TERMINAL OVERDRIVE // CARBON 2185</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{--cyan:#00f5ff;--cyan-dim:#00b8c4;--green:#39ff14;--green-dim:#1a7a00;--red:#ff2244;--amber:#ffaa00;--purple:#b44fff;--bg:#050a0e;--panel:#0c1c27;--panel2:#0f2233;--border:rgba(0,245,255,0.18);--border-bright:rgba(0,245,255,0.55);--text:#c8e8ee;--text-dim:#5a8a96;--glow-cyan:0 0 8px rgba(0,245,255,0.6),0 0 24px rgba(0,245,255,0.2);--glow-green:0 0 8px rgba(57,255,20,0.5);--glow-amber:0 0 8px rgba(255,170,0,0.5);--glow-red:0 0 8px rgba(255,34,68,0.6);}
+/* ── LIGHT MODE ── */
+body.light{
+  --bg:#f0f2f5;--panel:#ffffff;--panel2:#e8ecf0;
+  --border:rgba(0,100,180,0.18);--border-bright:rgba(0,100,180,0.45);
+  --text:#1a2a3a;--text-dim:#6a8098;
+  --cyan:#0070cc;--cyan-dim:#0055aa;
+  --green:#1a8a00;--green-dim:#0d5000;
+  --glow-cyan:0 0 6px rgba(0,112,204,0.3);
+  --glow-green:0 0 6px rgba(26,138,0,0.3);
+  --glow-amber:0 0 6px rgba(180,100,0,0.3);
+  --glow-red:0 0 6px rgba(200,0,40,0.3);
+  --amber:#b46400;--red:#cc0030;
+}
+body.light::before{background:none;}
+body.light::after{background-image:linear-gradient(rgba(0,100,180,0.04) 1px,transparent 1px),linear-gradient(90deg,rgba(0,100,180,0.04) 1px,transparent 1px);}
+body.light nav{background:rgba(240,242,245,0.97);border-bottom-color:rgba(0,100,180,0.3);}
+body.light .nav-dropdown-menu{background:rgba(240,242,245,0.99);border-color:rgba(0,100,180,0.3);}
+body.light .hero{background:linear-gradient(160deg,#e8f0f8 0%,#f0f2f5 60%);}
+body.light .hero-glow{background:radial-gradient(circle,rgba(0,112,204,0.08) 0%,transparent 70%);}
+body.light .hero-title{text-shadow:0 0 30px rgba(0,112,204,0.2);}
+body.light .lore-block,body.light .ref-block,body.light .panel,body.light .session-item,body.light .resource-card{box-shadow:0 1px 4px rgba(0,0,0,0.08);}
+body.light .terminal-box{background:#1a1a2e;color:#39ff14;border-left-color:#39ff14;}
+body.light .session-body p,body.light .lore-list li,body.light .ref-table td:first-child,body.light .card-text{color:#3a5068;}
+body.light .ref-table td:last-child{color:#b46400;}
+body.light .stat-input,body.light .combat-input{color:var(--text);}
+body.light .list-input{color:var(--text);border-bottom-color:rgba(0,100,180,0.2);}
+body.light .form-input,body.light .form-textarea{background:var(--panel2);border-color:rgba(0,100,180,0.2);color:var(--text);}
+body.light .add-session-form{background:#e8ecf0;}
+body.light .tag-cyan{color:#0055aa;border-color:rgba(0,85,170,0.3);}
+body.light .tag-green{color:#1a6600;border-color:rgba(26,102,0,0.3);}
+body.light .tag-amber{color:#8a4a00;border-color:rgba(138,74,0,0.3);}
+body.light .tag-red{color:#aa0020;border-color:rgba(170,0,32,0.3);}
+body.light .save-badge.dirty{color:#b46400;border-color:rgba(180,100,0,0.3);}
+body.light .save-badge.saved{color:#1a6600;border-color:rgba(26,102,0,0.3);}
+body.light .gm-card{box-shadow:0 1px 4px rgba(0,0,0,0.08);}
+body.light .player-card{box-shadow:0 1px 4px rgba(0,0,0,0.08);}
+body.light .login-box{box-shadow:0 4px 20px rgba(0,0,0,0.1);}
+body.light .login-input{background:#e8ecf0;color:var(--text);}
+body.light .login-codes{background:#e8ecf0;}
+/* theme toggle button */
+.theme-toggle{display:flex;align-items:center;gap:6px;font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:1px;cursor:pointer;background:none;border:1px solid var(--border);color:var(--text-dim);padding:0.25rem 0.7rem;transition:all 0.2s;flex-shrink:0;}
+.theme-toggle:hover{border-color:var(--border-bright);color:var(--text);}
+.theme-toggle-icon{font-size:14px;transition:transform 0.3s;}
+body.light .theme-toggle-icon{transform:rotate(180deg);}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;font-size:19px;line-height:1.6;overflow-x:hidden;}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.06) 2px,rgba(0,0,0,0.06) 4px);pointer-events:none;z-index:9999;}
+body::after{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,245,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,245,255,0.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
+.view{display:none;}.view.active{display:block;}
+/* NAV */
+nav{position:fixed;top:0;left:0;right:0;z-index:1000;background:rgba(5,10,14,0.95);border-bottom:1px solid var(--border-bright);backdrop-filter:blur(10px);display:flex;align-items:center;justify-content:space-between;padding:0 1.5rem;height:56px;}
+.nav-brand{font-family:'Orbitron',monospace;font-size:15px;font-weight:900;color:var(--cyan);text-shadow:var(--glow-cyan);letter-spacing:3px;cursor:pointer;flex-shrink:0;}
+.nav-brand span{color:var(--green);text-shadow:var(--glow-green);}
+.nav-links{display:flex;gap:0;list-style:none;}
+.nav-links a,.nav-links button{display:block;padding:0 0.9rem;line-height:56px;font-family:'Share Tech Mono',monospace;font-size:14px;color:var(--text-dim);text-decoration:none;letter-spacing:1.5px;text-transform:uppercase;border:none;background:transparent;border-left:1px solid transparent;transition:all 0.2s;cursor:pointer;white-space:nowrap;}
+.nav-links a:hover,.nav-links button:hover{color:var(--cyan);text-shadow:var(--glow-cyan);background:rgba(0,245,255,0.05);}
+.nav-dropdown{position:relative;}
+.nav-dropdown-btn{display:flex;align-items:center;gap:5px;}
+.nav-dropdown-btn::after{content:'▾';font-size:10px;}
+.nav-dropdown-menu{display:none;position:absolute;top:56px;left:0;background:rgba(7,15,20,0.98);border:1px solid var(--border-bright);border-top:none;min-width:180px;z-index:2000;}
+.nav-dropdown:hover .nav-dropdown-menu{display:block;}
+.nav-dropdown-menu button{display:block;width:100%;text-align:left;padding:0.6rem 1.1rem;line-height:1.4;border-bottom:1px solid rgba(0,245,255,0.06);font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--text-dim);background:transparent;cursor:pointer;letter-spacing:1.5px;text-transform:uppercase;transition:all 0.2s;border-left:none;}
+.nav-dropdown-menu button:hover{color:var(--cyan);background:rgba(0,245,255,0.05);}
+.nav-right{display:flex;align-items:center;gap:1rem;flex-shrink:0;}
+.nav-status{display:flex;align-items:center;gap:8px;font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--green);text-shadow:var(--glow-green);}
+.pulse{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:var(--glow-green);animation:blink 1.8s infinite;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
+.nav-user{font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--cyan-dim);letter-spacing:2px;}
+.nav-logout{font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--red);letter-spacing:1px;cursor:pointer;background:none;border:none;padding:0 0.5rem;transition:color 0.2s;}
+/* BUTTONS */
+.btn{display:inline-flex;align-items:center;gap:8px;padding:0.8rem 2rem;font-family:'Share Tech Mono',monospace;font-size:14px;letter-spacing:2px;text-transform:uppercase;text-decoration:none;border:1px solid;cursor:pointer;transition:all 0.25s;position:relative;overflow:hidden;background:transparent;}
+.btn::before{content:'';position:absolute;inset:0;background:currentColor;opacity:0;transition:opacity 0.25s;}
+.btn:hover::before{opacity:0.1;}
+.btn-primary{color:var(--cyan);border-color:var(--cyan);box-shadow:var(--glow-cyan);}
+.btn-primary:hover{box-shadow:0 0 16px rgba(0,245,255,0.9),0 0 40px rgba(0,245,255,0.3);}
+.btn-secondary{color:var(--green);border-color:var(--green-dim);}
+.btn-secondary:hover{box-shadow:var(--glow-green);border-color:var(--green);}
+.btn-amber{color:var(--amber);border-color:rgba(255,170,0,0.4);}
+.btn-danger{color:var(--red);border-color:rgba(255,34,68,0.3);}
+.btn-sm{padding:0.5rem 1.2rem;font-size:13px;}
+.btn-xs{padding:0.25rem 0.7rem;font-size:10px;}
+/* LAYOUT */
+.page{position:relative;z-index:1;padding:80px 1.5rem 4rem;max-width:1100px;margin:0 auto;}
+.page-wide{position:relative;z-index:1;padding:80px 1.5rem 4rem;max-width:1300px;margin:0 auto;}
+.section-label{font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:5px;color:var(--cyan-dim);text-transform:uppercase;margin-bottom:0.5rem;display:flex;align-items:center;gap:10px;}
+.section-label::after{content:'';flex:1;height:1px;background:linear-gradient(to right,var(--border-bright),transparent);max-width:200px;}
+.section-title{font-family:'Orbitron',monospace;font-size:clamp(1.4rem,3vw,2rem);font-weight:700;color:#fff;margin-bottom:2rem;}
+.section-title .hi{color:var(--cyan);}
+.divider{width:100%;height:1px;background:linear-gradient(to right,transparent,var(--border-bright),transparent);position:relative;z-index:1;}
+/* PANEL */
+.panel{background:var(--panel);border:1px solid var(--border);padding:1.5rem;margin-bottom:1.2rem;}
+.panel-title{font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:3px;color:var(--cyan);text-transform:uppercase;margin-bottom:1.2rem;padding-bottom:0.6rem;border-bottom:1px solid var(--border);display:flex;align-items:center;gap:8px;}
+.panel-title::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--cyan);box-shadow:var(--glow-cyan);flex-shrink:0;}
+/* LOGIN */
+.login-wrap{position:relative;z-index:1;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem;}
+.login-box{background:var(--panel);border:1px solid var(--border-bright);padding:2.5rem;width:100%;max-width:440px;position:relative;}
+.login-box::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(to right,var(--cyan),var(--green));}
+.login-title{font-family:'Orbitron',monospace;font-size:1.9rem;font-weight:900;color:#fff;text-shadow:var(--glow-cyan);letter-spacing:2px;margin-bottom:0.3rem;}
+.login-label{font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:2px;color:var(--cyan-dim);text-transform:uppercase;margin-bottom:0.5rem;display:block;}
+.login-input{width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:1.15rem;letter-spacing:3px;padding:0.8rem 1rem;outline:none;transition:border-color 0.2s;text-transform:uppercase;}
+.login-input:focus{border-color:var(--cyan-dim);}
+.login-codes{background:var(--panel2);border:1px solid var(--border);padding:1rem;margin:1.2rem 0;font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--text-dim);line-height:2;}
+.login-codes strong{color:var(--cyan);}
+.login-err{font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--red);margin-top:0.8rem;min-height:18px;}
+/* HERO */
+.hero{position:relative;z-index:1;min-height:100vh;display:flex;flex-direction:column;align-items:center;justify-content:center;text-align:center;padding:80px 2rem 4rem;overflow:hidden;}
+.hero-glow{position:absolute;width:600px;height:600px;border-radius:50%;background:radial-gradient(circle,rgba(0,245,255,0.07) 0%,transparent 70%);top:50%;left:50%;transform:translate(-50%,-50%);pointer-events:none;}
+.hero-tag{font-family:'Share Tech Mono',monospace;font-size:14px;letter-spacing:5px;color:var(--cyan-dim);text-transform:uppercase;margin-bottom:1.5rem;}
+.hero-tag::before{content:'>> ';color:var(--green);}
+.hero-title{font-family:'Orbitron',monospace;font-size:clamp(2.8rem,8vw,6rem);font-weight:900;line-height:0.9;color:#fff;text-shadow:0 0 40px rgba(0,245,255,0.3);letter-spacing:-1px;margin-bottom:0.4rem;}
+.hero-title .accent{color:var(--cyan);text-shadow:var(--glow-cyan);}
+.hero-subtitle{font-family:'Orbitron',monospace;font-size:clamp(0.9rem,2vw,1.4rem);color:var(--cyan-dim);letter-spacing:8px;text-transform:uppercase;margin-bottom:2.5rem;}
+.hero-desc{max-width:600px;font-size:1.2rem;color:var(--text-dim);margin-bottom:3rem;font-weight:300;}
+.hero-buttons{display:flex;gap:1rem;flex-wrap:wrap;justify-content:center;}
+/* LORE */
+.world-grid{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;}
+.lore-block{background:var(--panel);border:1px solid var(--border);padding:1.3rem 1.5rem;}
+.lore-title{font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:3px;color:var(--cyan-dim);text-transform:uppercase;margin-bottom:0.8rem;padding-bottom:0.6rem;border-bottom:1px solid var(--border);}
+.lore-list{list-style:none;}
+.lore-list li{padding:0.5rem 0;font-size:1.05rem;color:var(--text-dim);display:flex;align-items:flex-start;gap:8px;border-bottom:1px solid rgba(0,245,255,0.04);font-weight:300;}
+.lore-list li:last-child{border-bottom:none;}
+.lore-list li::before{content:'//';font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--cyan);flex-shrink:0;margin-top:2px;}
+.terminal-box{background:#040810;border:1px solid var(--border);border-left:3px solid var(--green);padding:1rem 1.4rem;margin-bottom:2rem;font-family:'Share Tech Mono',monospace;font-size:14px;color:var(--green);line-height:1.8;}
+.terminal-box .prompt{color:var(--cyan-dim);}
+/* REFERENCE */
+.ref-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:1.2rem;}
+.ref-block{background:var(--panel);border:1px solid var(--border);overflow:hidden;}
+.ref-block-header{background:var(--panel2);border-bottom:1px solid var(--border);padding:0.8rem 1.1rem;font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:3px;color:var(--cyan);text-transform:uppercase;display:flex;align-items:center;gap:8px;}
+.ref-block-header::before{content:'';width:6px;height:6px;border-radius:50%;background:var(--cyan);flex-shrink:0;}
+.ref-table{width:100%;border-collapse:collapse;}
+.ref-table tr{border-bottom:1px solid rgba(0,245,255,0.06);}
+.ref-table tr:last-child{border-bottom:none;}
+.ref-table tr:hover{background:rgba(0,245,255,0.04);}
+.ref-table td{padding:0.7rem 1.1rem;font-size:1rem;}
+.ref-table td:first-child{color:var(--text-dim);font-family:'Share Tech Mono',monospace;font-size:0.95rem;width:55%;}
+.ref-table td:last-child{color:var(--amber);font-family:'Share Tech Mono',monospace;font-size:1rem;text-align:right;}
+/* SESSIONS */
+.sessions-list{display:flex;flex-direction:column;gap:1px;}
+.session-item{background:var(--panel);border:1px solid var(--border);border-left:3px solid var(--border);cursor:pointer;transition:all 0.2s;overflow:hidden;}
+.session-item.open{border-left-color:var(--cyan);}
+.session-item:hover{border-color:var(--border-bright);border-left-color:var(--cyan);}
+.session-header{display:flex;align-items:center;gap:1rem;padding:1rem 1.3rem;user-select:none;}
+.session-num{font-family:'Orbitron',monospace;font-size:13px;font-weight:700;color:var(--cyan);letter-spacing:2px;flex-shrink:0;min-width:70px;}
+.session-title-text{font-family:'Orbitron',monospace;font-size:1.05rem;font-weight:700;color:#fff;flex:1;}
+.session-date{font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--text-dim);flex-shrink:0;}
+.session-chevron{color:var(--cyan-dim);font-size:12px;transition:transform 0.25s;flex-shrink:0;}
+.session-item.open .session-chevron{transform:rotate(90deg);}
+.session-body{display:none;padding:0 1.3rem 1.2rem;border-top:1px solid var(--border);}
+.session-item.open .session-body{display:block;}
+.session-body p{font-size:1.1rem;color:var(--text-dim);font-weight:300;line-height:1.7;margin-top:0.8rem;}
+.session-tags{display:flex;flex-wrap:wrap;gap:0.5rem;margin-top:1rem;}
+.tag{padding:0.3rem 0.8rem;font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;border:1px solid;}
+.tag-cyan{color:var(--cyan);border-color:rgba(0,245,255,0.3);}
+.tag-amber{color:var(--amber);border-color:rgba(255,170,0,0.3);}
+.tag-red{color:var(--red);border-color:rgba(255,34,68,0.3);}
+.tag-green{color:var(--green);border-color:rgba(57,255,20,0.3);}
+/* RESOURCES */
+.resources-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(240px,1fr));gap:1.2rem;}
+.resource-card{background:var(--panel);border:1px solid var(--border);padding:1.3rem 1.5rem;text-decoration:none;display:block;position:relative;overflow:hidden;transition:all 0.25s;color:inherit;}
+.resource-card::after{content:'';position:absolute;bottom:0;left:0;right:0;height:2px;background:linear-gradient(to right,var(--cyan),transparent);transform:scaleX(0);transform-origin:left;transition:transform 0.3s;}
+.resource-card:hover{border-color:var(--border-bright);}
+.resource-card:hover::after{transform:scaleX(1);}
+.resource-icon{font-size:24px;margin-bottom:0.8rem;}
+.resource-name{font-family:'Orbitron',monospace;font-size:1rem;font-weight:700;color:var(--cyan);letter-spacing:2px;text-transform:uppercase;margin-bottom:0.4rem;}
+.resource-desc{font-size:1rem;color:var(--text-dim);font-weight:300;line-height:1.5;}
+.resource-arrow{position:absolute;top:1rem;right:1rem;font-size:19px;color:var(--border-bright);transition:transform 0.2s,color 0.2s;}
+.resource-card:hover .resource-arrow{transform:translate(3px,-3px);color:var(--cyan);}
+/* FORMS */
+.form-group{margin-bottom:1rem;}
+.form-label{display:block;font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:2px;color:var(--cyan-dim);text-transform:uppercase;margin-bottom:0.4rem;}
+.form-input,.form-textarea{width:100%;background:var(--panel);border:1px solid var(--border);color:var(--text);font-family:'Rajdhani',sans-serif;font-size:1.1rem;padding:0.6rem 0.9rem;outline:none;transition:border-color 0.2s;}
+.form-input:focus,.form-textarea:focus{border-color:var(--cyan-dim);}
+.form-textarea{resize:vertical;min-height:80px;line-height:1.6;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:1rem;}
+.form-row-3{display:grid;grid-template-columns:1fr 1fr 1fr;gap:1rem;}
+.add-session-form{background:var(--panel2);border:1px solid var(--border);padding:1.5rem;margin-top:1.5rem;display:none;}
+.add-session-form.visible{display:block;}
+/* PLAYERS */
+.players-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:1.2rem;margin-top:2rem;}
+.player-card{background:var(--panel);border:1px solid var(--border);padding:1.8rem 1.5rem;cursor:pointer;transition:all 0.25s;position:relative;overflow:hidden;text-align:center;}
+.player-card:hover{border-color:var(--border-bright);}
+.player-avatar{width:64px;height:64px;border-radius:50%;border:2px solid var(--border);display:flex;align-items:center;justify-content:center;margin:0 auto 1rem;font-family:'Orbitron',monospace;font-size:1.3rem;font-weight:900;background:var(--panel2);transition:border-color 0.2s;}
+.player-card-name{font-family:'Orbitron',monospace;font-size:1.05rem;font-weight:700;color:#fff;letter-spacing:2px;text-transform:uppercase;margin-bottom:0.3rem;}
+.player-card-class{font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--cyan-dim);letter-spacing:2px;text-transform:uppercase;margin-bottom:0.5rem;}
+.player-hp-bar{width:100%;height:4px;background:rgba(255,255,255,0.08);margin-top:0.8rem;}
+.player-hp-fill{height:100%;transition:width 0.5s;}
+.player-hp-text{font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--text-dim);margin-top:0.3rem;}
+/* SHEET */
+.sheet-back{font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:2px;color:var(--cyan-dim);cursor:pointer;text-transform:uppercase;border:none;background:none;padding:0;display:flex;align-items:center;gap:6px;transition:color 0.2s;margin-bottom:1rem;}
+.sheet-back:hover{color:var(--cyan);}
+.sheet-back::before{content:'◄ ';}
+.stat-grid{display:grid;grid-template-columns:repeat(6,1fr);gap:0.6rem;margin-bottom:1rem;}
+.stat-box{background:var(--bg);border:1px solid var(--border);text-align:center;padding:0.6rem 0.3rem;}
+.stat-box:focus-within{border-color:var(--cyan-dim);}
+.stat-name{font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:1.5px;color:var(--cyan-dim);text-transform:uppercase;margin-bottom:0.2rem;}
+.stat-input{width:100%;background:transparent;border:none;color:#fff;font-family:'Orbitron',monospace;font-size:1.6rem;font-weight:700;text-align:center;outline:none;padding:0;}
+.stat-mod{font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--green);text-shadow:var(--glow-green);margin-top:0.1rem;min-height:14px;}
+.combat-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(130px,1fr));gap:0.8rem;}
+.combat-box{background:var(--bg);border:1px solid var(--border);padding:0.8rem 1rem;text-align:center;}
+.combat-label{font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:2px;color:var(--cyan-dim);text-transform:uppercase;margin-bottom:0.3rem;}
+.combat-input{width:100%;background:transparent;border:none;color:#fff;font-family:'Orbitron',monospace;font-size:1.4rem;font-weight:700;text-align:center;outline:none;padding:0;}
+.list-table{width:100%;border-collapse:collapse;}
+.list-table th{font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:2px;color:var(--cyan-dim);text-transform:uppercase;padding:0.4rem 0.6rem;border-bottom:1px solid var(--border);text-align:left;}
+.list-table td{padding:0.3rem 0.4rem;vertical-align:middle;}
+.list-table tr{border-bottom:1px solid rgba(0,245,255,0.04);}
+.list-table tr:last-child{border-bottom:none;}
+.list-input{width:100%;background:transparent;border:none;border-bottom:1px solid rgba(0,245,255,0.1);color:var(--text);font-family:'Rajdhani',sans-serif;font-size:1rem;padding:0.2rem 0.3rem;outline:none;transition:border-color 0.2s;}
+.list-input:focus{border-bottom-color:var(--cyan-dim);}
+.del-btn{background:none;border:none;color:rgba(255,34,68,0.4);cursor:pointer;font-size:14px;padding:0 4px;transition:color 0.2s;line-height:1;}
+.del-btn:hover{color:var(--red);}
+.add-row-btn{font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:1.5px;color:var(--cyan-dim);text-transform:uppercase;background:none;border:none;cursor:pointer;padding:0.5rem 0;display:flex;align-items:center;gap:6px;transition:color 0.2s;}
+.add-row-btn:hover{color:var(--cyan);}
+.add-row-btn::before{content:'+ ';}
+.two-col{display:grid;grid-template-columns:1fr 1fr;gap:1.2rem;margin-bottom:1.2rem;}
+.skill-row{display:flex;align-items:center;gap:8px;padding:0.3rem 0;border-bottom:1px solid rgba(0,245,255,0.04);}
+.skill-prof{width:14px;height:14px;border:1px solid var(--border);border-radius:2px;cursor:pointer;flex-shrink:0;transition:all 0.2s;display:flex;align-items:center;justify-content:center;}
+.skill-prof.on{background:var(--cyan);border-color:var(--cyan);box-shadow:var(--glow-cyan);}
+.skill-prof.on::after{content:'✓';font-size:9px;color:var(--bg);font-weight:900;}
+.skill-name{font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:1px;color:var(--text-dim);text-transform:uppercase;flex:1;}
+.skill-val{font-family:'Orbitron',monospace;font-size:13px;font-weight:700;color:var(--green);min-width:28px;text-align:right;}
+.skills-grid{display:grid;grid-template-columns:1fr 1fr;gap:0.2rem;}
+.save-badge{display:inline-flex;align-items:center;gap:6px;padding:0.4rem 1rem;border:1px solid;font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;transition:all 0.3s;}
+.save-badge.dirty{color:var(--amber);border-color:rgba(255,170,0,0.3);}
+.save-badge.saved{color:var(--green);border-color:rgba(57,255,20,0.3);}
+.save-badge.saving{color:var(--cyan-dim);border-color:rgba(0,245,255,0.2);}
+/* GM */
+.gm-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(260px,1fr));gap:1.2rem;margin-bottom:2rem;}
+.gm-card{background:var(--panel);border:1px solid var(--border);padding:1.3rem;transition:all 0.2s;}
+.gm-card:hover{border-color:var(--border-bright);}
+.gm-char-name{font-family:'Orbitron',monospace;font-size:1.05rem;font-weight:700;letter-spacing:1px;}
+.gm-char-sub{font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--cyan-dim);letter-spacing:2px;text-transform:uppercase;margin-top:0.2rem;}
+.gm-hp-row{display:flex;align-items:center;gap:0.8rem;margin:0.8rem 0;}
+.gm-hp-bar{flex:1;height:6px;background:rgba(255,255,255,0.06);}
+.gm-hp-fill{height:100%;transition:width 0.5s;}
+.gm-hp-val{font-family:'Orbitron',monospace;font-size:12px;font-weight:700;flex-shrink:0;min-width:60px;text-align:right;}
+.gm-quick{display:flex;gap:0.4rem;align-items:center;margin-top:0.5rem;flex-wrap:wrap;}
+.gm-delta{width:60px;background:var(--panel2);border:1px solid var(--border);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:12px;padding:0.3rem 0.5rem;outline:none;text-align:center;}
+/* TOAST */
+.toast{position:fixed;bottom:2rem;right:2rem;background:var(--panel2);border:1px solid var(--border-bright);padding:0.8rem 1.5rem;font-family:'Share Tech Mono',monospace;font-size:14px;color:var(--cyan);letter-spacing:2px;z-index:9998;transform:translateY(100px);opacity:0;transition:all 0.3s;}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.err{color:var(--red);border-color:rgba(255,34,68,0.5);}
+/* LOADING */
+.loading-screen{position:fixed;inset:0;background:var(--bg);display:flex;align-items:center;justify-content:center;z-index:9997;flex-direction:column;gap:1rem;}
+.loading-screen.hidden{display:none;}
+.loading-text{font-family:'Share Tech Mono',monospace;font-size:13px;letter-spacing:3px;color:var(--cyan-dim);text-transform:uppercase;animation:blink 1.5s infinite;}
+.loading-bar{width:200px;height:2px;background:rgba(0,245,255,0.1);}
+.loading-fill{height:100%;background:var(--cyan);animation:loadbar 1.5s ease-in-out infinite;}
+@keyframes loadbar{0%{width:0%;margin-left:0%}50%{width:100%;margin-left:0%}100%{width:0%;margin-left:100%}}
+@keyframes fadein{from{opacity:0;transform:translateY(20px)}to{opacity:1;transform:translateY(0)}}
+.fadein{animation:fadein 0.35s ease both;}
+.glitch{animation:flicker 6s infinite;}
+@keyframes flicker{0%,97%,100%{opacity:1}98%{opacity:0.4}99%{opacity:0.8}}
+footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:2rem;text-align:center;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;}
+footer span{color:var(--cyan-dim);}
+@media(max-width:760px){.world-grid,.two-col{grid-template-columns:1fr;}.stat-grid{grid-template-columns:repeat(3,1fr);}.form-row,.form-row-3{grid-template-columns:1fr;}.skills-grid{grid-template-columns:1fr;}nav .nav-links li:not(.nav-dropdown){display:none;}}
+</style>
+</head>
+<body>
+
+<div class="loading-screen" id="loadingScreen">
+  <div style="font-family:'Orbitron',monospace;font-size:1.2rem;font-weight:900;color:var(--cyan);text-shadow:var(--glow-cyan);letter-spacing:4px;">CARBON 2185</div>
+  <div class="loading-bar"><div class="loading-fill"></div></div>
+  <div class="loading-text">conectando a la esfera...</div>
+</div>
+
+<div class="toast" id="toast"></div>
+
+<nav id="mainNav" style="display:none;">
+  <div class="nav-brand glitch" onclick="goHome()">TERMINAL <span>OVERDRIVE</span></div>
+  <ul class="nav-links">
+    <li><a href="#" onclick="goHome();return false;">Inicio</a></li>
+    <li><a href="#" onclick="scrollSec('Mundo');return false;">Mundo</a></li>
+    <li><a href="#" onclick="scrollSec('Referencia');return false;">Referencia</a></li>
+    <li><a href="#" onclick="scrollSec('Bitacoras');return false;">Bitácoras</a></li>
+    <li class="nav-dropdown" id="navJugadores" style="display:none;">
+      <button class="nav-dropdown-btn">Jugadores</button>
+      <div class="nav-dropdown-menu" id="navDropdown"></div>
+    </li>
+    <li id="navInitiativa" style="display:none;"><a href="#" onclick="openTracker();return false;">⚔ Iniciativa</a></li>
+    <li id="navGMLink" style="display:none;"><a href="#" onclick="showView('gm');return false;">⬡ GM Panel</a></li>
+  </ul>
+  <div class="nav-right">
+    <div class="nav-user" id="navUser"></div>
+    <button class="theme-toggle" id="themeToggle" onclick="toggleTheme()" title="Cambiar tema">
+      <span class="theme-toggle-icon" id="themeIcon">☀</span>
+      <span id="themeLabel">CLARO</span>
+    </button>
+    <div class="nav-status"><div class="pulse"></div>EN LÍNEA</div>
+    <button class="nav-logout" onclick="logout()">✕ Salir</button>
+  </div>
+</nav>
+
+<!-- LOGIN -->
+<div class="view active" id="viewLogin">
+  <div class="login-wrap">
+    <div class="login-box">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--cyan-dim);letter-spacing:4px;margin-bottom:1.5rem;">CARBON 2185 // TERMINAL OVERDRIVE</div>
+      <div class="login-title">ACCESO AL<br>SISTEMA</div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--cyan-dim);letter-spacing:3px;text-transform:uppercase;margin-top:0.3rem;margin-bottom:2rem;">San Francisco // 2185</div>
+      <div class="login-codes">
+        <div>Jugadores: <strong>R9</strong> <strong>NEON-02</strong> <strong>QUILL</strong> <strong>JUKA</strong></div>
+        <div>Master / GM: <strong>MASTER-2185</strong></div>
+      </div>
+      <div class="form-group">
+        <label class="login-label">Código de acceso</label>
+        <input class="login-input" id="loginCode" type="text" placeholder="NEON-01" autocomplete="off" onkeydown="if(event.key==='Enter')doLogin()">
+      </div>
+      <button class="btn btn-primary" style="width:100%;justify-content:center;margin-top:0.5rem;" onclick="doLogin()">◈ Conectar a la Esfera</button>
+      <div class="login-err" id="loginErr"></div>
+    </div>
+  </div>
+</div>
+
+<!-- MAIN -->
+<div class="view" id="viewMain">
+  <div class="hero">
+    <div class="hero-glow"></div>
+    <div class="hero-tag">carbon 2185 // cyberpunk rpg</div>
+    <h1 class="hero-title">TERMINAL<br><span class="accent">OVERDRIVE</span></h1>
+    <div class="hero-subtitle">San Francisco // 2185</div>
+    <p class="hero-desc">Las corporaciones controlan todo. El Enigma Collective desafía ese orden. Tú eres un cyberpunk en el filo entre la carne y el metal.</p>
+    <div class="hero-buttons">
+      <button class="btn btn-primary" onclick="scrollSec('Bitacoras')">⬡ Bitácoras</button>
+      <button class="btn btn-secondary" onclick="showView('players')">◈ Mi personaje</button>
+    </div>
+  </div>
+  <div class="divider"></div>
+  <section class="page" id="secMundo">
+    <div class="section-label">Lore &amp; Ambientación</div>
+    <h2 class="section-title">El <span class="hi">Mundo</span> de Carbon 2185</h2>
+    <div class="terminal-box">
+      <div><span class="prompt">sys@carbon2185:~$ </span>load world_data.db</div>
+      <div><span class="prompt">[OK]</span> San Francisco — Año 2185. Densidad poblacional: CRÍTICA.</div>
+      <div><span class="prompt">[OK]</span> La Esfera en línea — interfaz VR global. Morir dentro = morir fuera.</div>
+      <div><span class="prompt">[WARN]</span> Enigma Collective detectado. Objetivo: Sundang ISS Corp.</div>
+      <div><span class="prompt">[WARN]</span> La Escultora — IA rogue. Estado: ACTIVA. Peligro: EXTREMO.</div>
+    </div>
+    <div class="world-grid">
+      </div>
+  </section>
+  <div class="divider"></div>
+  <section class="page" id="secReferencia">
+    <div class="section-label">Game Master Tools</div>
+    <h2 class="section-title">Referencia <span class="hi">Rápida</span></h2>
+    <div class="ref-grid">
+      <div class="ref-block"><div class="ref-block-header">Chequeos de DC</div><table class="ref-table">
+        <tr><td>Hackeo — blacklist Esfera</td><td>DC 15</td></tr><tr><td>Percepción — sin gliphs</td><td>DC 25</td></tr>
+        <tr><td>Computing / ICE reveal</td><td>DC 20</td></tr><tr><td>Tarea fácil</td><td>DC 10</td></tr>
+        <tr><td>Tarea moderada</td><td>DC 15</td></tr><tr><td>Tarea difícil</td><td>DC 20</td></tr>
+        <tr><td>Tarea muy difícil</td><td>DC 25</td></tr><tr><td>Casi imposible</td><td>DC 30</td></tr>
+      </table></div>
+      <div class="ref-block"><div class="ref-block-header">Condiciones de Status</div><table class="ref-table">
+        <tr><td>Cegado</td><td>Desventaja en ataques</td></tr><tr><td>Hechizado</td><td>No ataca al encantador</td></tr>
+        <tr><td>Sordo</td><td>Falla chequeos auditivos</td></tr><tr><td>Asustado</td><td>Desventaja al ver fuente</td></tr>
+        <tr><td>Agarrado</td><td>Velocidad 0</td></tr><tr><td>Incapacitado</td><td>Sin acciones/reacciones</td></tr>
+        <tr><td>Paralizado</td><td>No puede moverse ni hablar</td></tr><tr><td>Inconsciente</td><td>No reacciona al entorno</td></tr>
+      </table></div>
+      <div class="ref-block"><div class="ref-block-header">Acciones en Combate</div><table class="ref-table">
+        <tr><td>Atacar</td><td>1 acción</td></tr><tr><td>Correr (dash)</td><td>1 acción</td></tr>
+        <tr><td>Desengancharse</td><td>1 acción</td></tr><tr><td>Esconderse</td><td>1 acción</td></tr>
+        <tr><td>Ayuda a aliado</td><td>1 acción</td></tr><tr><td>Usar objeto</td><td>1 acción</td></tr>
+        <tr><td>Preparar acción</td><td>1 acción + reacción</td></tr><tr><td>Ataque de oportunidad</td><td>Reacción</td></tr>
+      </table></div>
+    </div>
+  </section>
+  <div class="divider"></div>
+  <section class="page" id="secBitacoras">
+    <div class="section-label">Registro de Sesiones</div>
+    <h2 class="section-title">Bitácoras <span class="hi">de Campaña</span></h2>
+    <div class="sessions-list" id="sessionsList"></div>
+    <div id="addSesBtn" style="display:none;margin-top:1.5rem;">
+      <button class="btn btn-secondary" onclick="toggleAddForm('addSesForm')">+ Añadir Bitácora</button>
+      <div class="add-session-form" id="addSesForm">
+        <div class="form-row">
+          <div class="form-group"><label class="form-label">Número</label><input class="form-input" id="sNum" placeholder="SES // 003"></div>
+          <div class="form-group"><label class="form-label">Fecha / Ref</label><input class="form-input" id="sDate" placeholder="Sesión 3"></div>
+        </div>
+        <div class="form-group"><label class="form-label">Título</label><input class="form-input" id="sTitle"></div>
+        <div class="form-group"><label class="form-label">Resumen</label><textarea class="form-textarea" id="sContent" rows="4"></textarea></div>
+        <div class="form-group"><label class="form-label">Etiquetas (separar con coma)</label><input class="form-input" id="sTags" placeholder="Combate, Hackeo"></div>
+        <button class="btn btn-primary" onclick="publishSession()">◈ Publicar Bitácora</button>
+      </div>
+    </div>
+  </section>
+  <div class="divider"></div>
+  <section class="page">
+    <div class="section-label">Material de Campaña</div>
+    <h2 class="section-title">Recursos <span class="hi">del GM</span></h2>
+    <div class="resources-grid">
+      <a href="https://drive.google.com/drive/folders/1Yq16ve986eph8RCV4PRdPOrN7wwGrApn?usp=drive_link" target="_blank" class="resource-card">
+        <div class="resource-icon">📁</div><div class="resource-name">Manuales</div>
+        <div class="resource-desc">Core Rulebook, Terminal Overdrive y material en Google Drive.</div><span class="resource-arrow">↗</span>
+      </a>
+      <a href="https://illuminantgames.com/gtove/1WF7wap1gaRGiXKcSDlXWbiUgZajU1Yfn" target="_blank" class="resource-card">
+        <div class="resource-icon">🗺️</div><div class="resource-name">Mapa — GToVE</div>
+        <div class="resource-desc">Escenario virtual en Illuminant Games GToVE.</div><span class="resource-arrow">↗</span>
+      </a>
+      <a href="https://www.dragonturtlegames.com" target="_blank" class="resource-card">
+        <div class="resource-icon">🐢</div><div class="resource-name">Dragon Turtle Games</div>
+        <div class="resource-desc">Sitio oficial del sistema Carbon 2185.</div><span class="resource-arrow">↗</span>
+      </a>
+      <a href="initiative-tracker.html" class="resource-card" style="border-left:3px solid var(--cyan);background:linear-gradient(135deg,var(--panel),rgba(0,245,255,0.04));">
+        <div class="resource-icon">⚔️</div>
+        <div class="resource-name" style="color:var(--cyan);">Tracker de Iniciativa</div>
+        <div class="resource-desc">Gestiona el orden de combate en tiempo real. Jugadores, NPCs y enemigos sincronizados.</div>
+        <span class="resource-arrow">↗</span>
+        <div style="position:absolute;bottom:0.6rem;left:1.5rem;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--green);text-transform:uppercase;">● En tiempo real</div>
+      </a>
+    </div>
+  </section>
+  <footer><span>CARBON 2185 // TERMINAL OVERDRIVE</span> &nbsp;·&nbsp; Sitio de campaña — uso personal &nbsp;·&nbsp; <span>Carbon 2185 © Robert Marriner-Dodds / Dragon Turtle Games Ltd.</span></footer>
+</div>
+
+<!-- PLAYERS -->
+<div class="view" id="viewPlayers">
+  <div class="page fadein">
+    <button class="sheet-back" onclick="goHome()">Volver al inicio</button>
+    <div class="section-label">Equipo Activo</div>
+    <h2 class="section-title">Panel de <span class="hi">Jugadores</span></h2>
+    <p style="color:var(--text-dim);font-size:0.95rem;">Los datos se sincronizan en tiempo real. Haz clic en tu tarjeta para editar tu hoja.</p>
+    <div class="players-grid" id="playersGrid"></div>
+  </div>
+</div>
+
+<!-- SHEET -->
+<div class="view" id="viewSheet">
+  <div class="page fadein" id="sheetPage"></div>
+</div>
+
+<!-- GM PANEL -->
+<div class="view" id="viewGm">
+  <div class="page-wide fadein">
+    <div class="section-label">Acceso Master</div>
+    <h2 class="section-title">Panel del <span class="hi">GM</span></h2>
+    <div style="margin-bottom:2rem;">
+      <div class="section-label" style="margin-bottom:1rem;">Estado del grupo — en tiempo real</div>
+      <div class="gm-grid" id="gmGrid"></div>
+    </div>
+    <div>
+      <div class="section-label" style="margin-bottom:1rem;">Gestión de bitácoras</div>
+      <div id="gmSessList"></div>
+      <div style="margin-top:1rem;">
+        <button class="btn btn-secondary btn-sm" onclick="toggleAddForm('gmSesForm')">+ Nueva Bitácora</button>
+        <div class="add-session-form" id="gmSesForm">
+          <div class="form-row">
+            <div class="form-group"><label class="form-label">Número</label><input class="form-input" id="gNum" placeholder="SES // 003"></div>
+            <div class="form-group"><label class="form-label">Fecha / Ref</label><input class="form-input" id="gDate"></div>
+          </div>
+          <div class="form-group"><label class="form-label">Título</label><input class="form-input" id="gTitle"></div>
+          <div class="form-group"><label class="form-label">Resumen</label><textarea class="form-textarea" id="gContent" rows="4"></textarea></div>
+          <div class="form-group"><label class="form-label">Etiquetas</label><input class="form-input" id="gTags" placeholder="Combate, Revelación"></div>
+          <button class="btn btn-primary btn-sm" onclick="gmPublishSession()">◈ Publicar</button>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────
+const SUPA_URL='https://zgzueeoxnqmzpdzofhxx.supabase.co';
+const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnenVlZW94bnFtenBkem9maHh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5ODI4NjIsImV4cCI6MjA5MzU1ODg2Mn0.PF_TKkSEuY7pAdW5T3E7Yk3h_ApkB_dEWua4e33VqJw';
+const GM_CODE='MASTER-2185';
+const COLS=['var(--cyan)','var(--green)','var(--amber)','var(--purple)'];
+const SKILLS=[
+  {n:'Acrobacias',        s:'stat_des'},
+  {n:'Atletismo',         s:'stat_fue'},
+  {n:'Actuación',         s:'stat_peo'},
+  {n:'Burocracia',        s:'stat_peo'},
+  {n:'Callejear',         s:'stat_int'},
+  {n:'Computación',       s:'stat_tec'},
+  {n:'Engaño',            s:'stat_peo'},
+  {n:'Hackeo',            s:'stat_tec'},
+  {n:'Historia',          s:'stat_int'},
+  {n:'Ingeniería',        s:'stat_int'},
+  {n:'Intimidación',      s:'stat_fue'},
+  {n:'Investigación',     s:'stat_int'},
+  {n:'Juego',             s:'stat_int'},
+  {n:'Juego de Manos',    s:'stat_des'},
+  {n:'Mecánica',          s:'stat_tec'},
+  {n:'Medicina',          s:'stat_tec'},
+  {n:'Navegación',        s:'stat_int'},
+  {n:'Percepción',        s:'stat_int'},
+  {n:'Perspicacia',       s:'stat_peo'},
+  {n:'Persuasión',        s:'stat_peo'},
+  {n:'Presencia',         s:'stat_peo'},
+  {n:'Rastreo',           s:'stat_int'},
+  {n:'Religión',          s:'stat_int'},
+  {n:'Robótica',          s:'stat_tec'},
+  {n:'Sigilo',            s:'stat_des'},
+  {n:'Vehículos (Aire)',  s:'stat_tec'},
+  {n:'Vehículos (Tierra)',s:'stat_des'},
+];
+const sb=window.supabase.createClient(SUPA_URL,SUPA_KEY);
+
+// ── STATE ────────────────────────────────────────────────
+let user=null,chars=[null,null,null,null],sessions=[],rtSub=null,saveTimer=null,dirty=false,sheetSlot=null;
+
+// ── BOOT ─────────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded',async()=>{
+  const saved=sessionStorage.getItem('c2185u');
+  if(saved){try{user=JSON.parse(saved);await afterLogin();}catch(e){sessionStorage.removeItem('c2185u');}}
+  document.getElementById('loadingScreen').classList.add('hidden');
+});
+
+// ── LOGIN ────────────────────────────────────────────────
+async function doLogin(){
+  const code=document.getElementById('loginCode').value.trim().toUpperCase();
+  const err=document.getElementById('loginErr');
+  err.textContent='';
+  if(!code){err.textContent='// Ingresa tu código';return;}
+  if(code===GM_CODE){user={slot:0,code:GM_CODE,isGM:true,player_name:'GM'};sessionStorage.setItem('c2185u',JSON.stringify(user));await afterLogin();return;}
+  const{data,error}=await sb.from('players').select('*').eq('code',code).single();
+  if(error||!data){err.textContent='// Código no reconocido';return;}
+  user={slot:data.slot,code:data.code,isGM:false,player_name:data.player_name};
+  sessionStorage.setItem('c2185u',JSON.stringify(user));
+  await afterLogin();
+}
+
+async function afterLogin(){
+  document.getElementById('mainNav').style.display='flex';
+  document.getElementById('navUser').textContent=user.isGM?'⬡ GM':user.code;
+  document.getElementById('navJugadores').style.display='block';
+  document.getElementById('navInitiativa').style.display='block';
+  const menu=document.getElementById('navDropdown');
+  if(user.isGM){
+    document.getElementById('navGMLink').style.display='block';
+    document.getElementById('addSesBtn')&&(document.getElementById('addSesBtn').style.display='block');
+    menu.innerHTML=`<button onclick="showView('players')">◈ Ver todos</button>`+[0,1,2,3].map(i=>`<button onclick="openSheet(${i})">// Jugador ${i+1}</button>`).join('');
+  }else{
+    menu.innerHTML=`<button onclick="showView('players')">◈ Ver todos</button><button onclick="openSheet(${user.slot-1})">// Mi personaje</button>`;
+  }
+  await loadChars();
+  await loadSessions();
+  subscribeRT();
+  showView('main');
+}
+
+function logout(){
+  sessionStorage.removeItem('c2185u');user=null;
+  if(rtSub)sb.removeChannel(rtSub);
+  document.getElementById('mainNav').style.display='none';
+  showView('login');
+}
+
+// ── DATA ──────────────────────────────────────────────────
+async function loadChars(){
+  const{data}=await sb.from('characters').select('*').order('slot');
+  if(data)data.forEach(c=>{chars[c.slot-1]=c;});
+}
+async function loadSessions(){
+  const{data}=await sb.from('sessions').select('*').order('created_at');
+  if(data){sessions=data;renderSessions();}
+}
+
+// ── REALTIME ──────────────────────────────────────────────
+function subscribeRT(){
+  rtSub=sb.channel('portal')
+    .on('postgres_changes',{event:'*',schema:'public',table:'characters'},p=>{
+      if(p.new){chars[p.new.slot-1]=p.new;}
+      const vp=document.getElementById('viewPlayers').classList.contains('active');
+      const vg=document.getElementById('viewGm').classList.contains('active');
+      if(vp)renderPlayersGrid();
+      if(vg)renderGMPanel();
+      if(sheetSlot!==null&&p.new&&p.new.slot===sheetSlot+1&&!dirty)renderSheet(sheetSlot);
+    })
+    .on('postgres_changes',{event:'*',schema:'public',table:'sessions'},()=>loadSessions())
+    .subscribe();
+}
+
+// ── VIEWS ─────────────────────────────────────────────────
+function showView(n){
+  document.querySelectorAll('.view').forEach(v=>v.classList.remove('active'));
+  const id='view'+n.charAt(0).toUpperCase()+n.slice(1);
+  document.getElementById(id)?.classList.add('active');
+  window.scrollTo(0,0);
+  if(n==='players')renderPlayersGrid();
+  if(n==='gm'&&user?.isGM)renderGMPanel();
+}
+function goHome(){showView('main');}
+function scrollSec(name){
+  showView('main');
+  setTimeout(()=>{const el=document.getElementById('sec'+name);if(el)el.scrollIntoView({behavior:'smooth',block:'start'});},100);
+}
+
+// ── PLAYERS GRID ──────────────────────────────────────────
+function renderPlayersGrid(){
+  const g=document.getElementById('playersGrid');g.innerHTML='';
+  for(let i=0;i<4;i++){
+    const ch=chars[i]||{};
+    const canOpen=user?.isGM||user?.slot===i+1;
+    const pct=ch.hp_max>0?Math.max(0,Math.min(100,(ch.hp_current/ch.hp_max)*100)):100;
+    const hc=pct>60?'var(--green)':pct>30?'var(--amber)':'var(--red)';
+    const col=COLS[i];
+    const ini=ch.char_name?ch.char_name.split(' ').map(w=>w[0]).join('').slice(0,2).toUpperCase():(i+1).toString().padStart(2,'0');
+    const card=document.createElement('div');
+    card.className='player-card';
+    if(!canOpen)card.style.cursor='default';
+    if(canOpen)card.onclick=()=>openSheet(i);
+    card.innerHTML=`
+      <div class="player-avatar" style="border-color:${col};color:${col}">${ini}</div>
+      <div class="player-card-name">${ch.char_name||'Jugador '+(i+1)}</div>
+      <div class="player-card-class">${ch.archetype||'—'}${ch.level>1?' // Nv.'+ch.level:''}</div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim)">${ch.origin||'—'}</div>
+      <div class="player-hp-bar"><div class="player-hp-fill" style="width:${pct}%;background:${hc};box-shadow:0 0 6px ${hc}"></div></div>
+      <div class="player-hp-text">HP ${ch.hp_current||0} / ${ch.hp_max||10} &nbsp;|&nbsp; CA ${ch.ac||10} &nbsp;|&nbsp; ₩${ch.credits||0}</div>`;
+    g.appendChild(card);
+  }
+}
+
+// ── CHARACTER SHEET ───────────────────────────────────────
+function openSheet(i){sheetSlot=i;dirty=false;renderSheet(i);showView('sheet');}
+function md(v){const m=Math.floor((v-10)/2);return(m>=0?'+':'')+m;}
+
+function renderSheet(i){
+  const ch=chars[i]||{};
+  const canEdit=user?.isGM||user?.slot===i+1;
+  const ro=canEdit?'':'readonly';
+  const col=COLS[i];
+  const saves=ch.saving_throws||[];
+  const skills=ch.skills||{};
+  const stats=[{k:'fue',l:'FUE'},{k:'des',l:'DEX'},{k:'con',l:'CON'},{k:'int',l:'INT'},{k:'tec',l:'TEC'},{k:'peo',l:'PEO'}];
+
+  document.getElementById('sheetPage').innerHTML=`
+    <button class="sheet-back" onclick="showView('players')">Volver al panel</button>
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap;">
+      <div>
+        <h2 class="section-title" style="margin-bottom:0.2rem;color:${col};">${E(ch.char_name)||'Jugador '+(i+1)}</h2>
+        <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text-dim);letter-spacing:2px;">${E(ch.archetype)||'ARQUETIPO'} // ${E(ch.origin)||'ORIGEN'} // NIVEL ${ch.level||1}</div>
+      </div>
+      ${canEdit?`<div style="display:flex;gap:0.6rem;align-items:center;flex-wrap:wrap;">
+        <span class="save-badge dirty" id="saveBadge">● sin guardar</span>
+        <button class="btn btn-primary btn-sm" onclick="saveSheet(${i})">◈ Guardar</button>
+      </div>`:'<div style="font-family:\'Share Tech Mono\',monospace;font-size:11px;color:var(--text-dim)">// Solo lectura</div>'}
+    </div>
+
+    <div class="panel"><div class="panel-title">Identidad</div>
+      <div class="form-row-3">
+        <div class="form-group"><label class="form-label">Nombre del personaje</label><input class="form-input" id="f-char_name" value="${E(ch.char_name)}" placeholder="Nombre" ${ro}></div>
+        <div class="form-group"><label class="form-label">Arquetipo</label><input class="form-input" id="f-archetype" value="${E(ch.archetype)}" placeholder="Hacker, Mercenario…" ${ro}></div>
+        <div class="form-group"><label class="form-label">Origen</label><input class="form-input" id="f-origin" value="${E(ch.origin)}" placeholder="Corp, Callejero, Mech…" ${ro}></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Nivel</label><input class="form-input" id="f-level" type="number" min="1" max="20" value="${ch.level||1}" ${ro}></div>
+        <div class="form-group"><label class="form-label">Bono de Competencia</label><input class="form-input" id="f-prof_bonus" type="number" value="${ch.prof_bonus||2}" ${ro}></div>
+      </div>
+    </div>
+
+    <div class="panel"><div class="panel-title">Atributos</div>
+      <div class="stat-grid">
+        ${stats.map(s=>`<div class="stat-box"><div class="stat-name">${s.l}</div><input class="stat-input" id="f-stat_${s.k}" type="number" min="1" max="30" value="${ch['stat_'+s.k]||10}" oninput="onStatChange()" ${ro}><div class="stat-mod" id="mod-${s.k}">${md(ch['stat_'+s.k]||10)}</div></div>`).join('')}
+      </div>
+    </div>
+
+    <div class="panel"><div class="panel-title">Combate &amp; Defensa</div>
+      <div class="combat-grid">
+        <div class="combat-box"><div class="combat-label">HP Actual</div><input class="combat-input" id="f-hp_current" type="number" value="${ch.hp_current||10}" style="color:var(--green);text-shadow:var(--glow-green)" ${ro}></div>
+        <div class="combat-box"><div class="combat-label">HP Máximo</div><input class="combat-input" id="f-hp_max" type="number" value="${ch.hp_max||10}" style="color:var(--cyan)" ${ro}></div>
+        <div class="combat-box"><div class="combat-label">HP Temporal</div><input class="combat-input" id="f-temp_hp" type="number" value="${ch.temp_hp||0}" style="color:var(--amber)" ${ro}></div>
+        <div class="combat-box"><div class="combat-label">Clase Armadura</div><input class="combat-input" id="f-ac" type="number" value="${ch.ac||10}" ${ro}></div>
+        <div class="combat-box"><div class="combat-label">Iniciativa</div><input class="combat-input" id="f-initiative" type="number" value="${ch.initiative||0}" ${ro}></div>
+        <div class="combat-box"><div class="combat-label">Velocidad (m)</div><input class="combat-input" id="f-speed" type="number" value="${ch.speed||30}" ${ro}></div>
+        <div class="combat-box"><div class="combat-label">Percep. Pasiva</div><input class="combat-input" id="f-passive_perc" type="number" value="${ch.passive_perc||10}" ${ro}></div>
+        <div class="combat-box"><div class="combat-label">Créditos ₩</div><input class="combat-input" id="f-credits" type="number" value="${ch.credits||0}" style="color:var(--amber)" ${ro}></div>
+      </div>
+    </div>
+
+    <div class="two-col">
+      <div class="panel" style="margin-bottom:0"><div class="panel-title">Tiradas de Salvación</div>
+        <div style="display:flex;flex-direction:column;gap:0.2rem">
+          ${[
+            {key:'Fortaleza', stat:'stat_con', abbr:'CON'},
+            {key:'Reflejos',  stat:'stat_des', abbr:'DEX'},
+            {key:'Mente',     stat:'stat_int', abbr:'INT'},
+          ].map(sv=>{
+            const on=saves.includes(sv.key)?'on':'';
+            const base=ch[sv.stat]||10;
+            const pb=ch.prof_bonus||2;
+            const total=Math.floor((base-10)/2)+(saves.includes(sv.key)?pb:0);
+            return `<div class="skill-row"><div class="skill-prof ${on}" onclick="${canEdit?`tSave(this,'${sv.key}')`:''}"></div><span class="skill-name">${sv.key}</span><span class="skill-val" style="font-size:0.75rem;color:var(--text-dim)">(${sv.abbr})</span><span class="skill-val" id="sv-${sv.key}">${(total>=0?'+':'')+total}</span></div>`;
+          }).join('')}
+        </div>
+      </div>
+      <div class="panel" style="margin-bottom:0"><div class="panel-title">Habilidades</div>
+        <div class="skills-grid">
+          ${SKILLS.map(sk=>{
+            const on=skills[sk.n]?'on':'';
+            const sv=ch[sk.s]||10;const pb=ch.prof_bonus||2;
+            const total=Math.floor((sv-10)/2)+(skills[sk.n]?pb:0);
+            return `<div class="skill-row"><div class="skill-prof ${on}" onclick="${canEdit?`tSkill(this,'${sk.n}')`:''}"></div><span class="skill-name">${sk.n}</span><span class="skill-val skill-calc" data-s="${sk.s}">${(total>=0?'+':'')+total}</span></div>`;
+          }).join('')}
+        </div>
+      </div>
+    </div>
+
+    ${tablePanel('Armadura','armorTbl','armor',ch.armor||[],[{l:'Nombre',w:''},{l:'Tipo',w:'90px'},{l:'CA',w:'50px'},{l:'Sigilo',w:'70px'},{l:'Notas',w:''}],
+      (r,e)=>`<td><input class="list-input" value="${E(r.name||'')}" placeholder="Nombre" ${e}></td><td><input class="list-input" style="width:90px" value="${E(r.type||'')}" ${e}></td><td><input class="list-input" style="width:50px" value="${E(r.ac||'')}" ${e}></td><td><input class="list-input" style="width:70px" value="${E(r.stealth||'')}" ${e}></td><td><input class="list-input" value="${E(r.notes||'')}" ${e}></td>`,
+      canEdit,'Añadir armadura')}
+
+    ${tablePanel('Arsenal','weapTbl','weapon',ch.weapons||[],[{l:'Arma',w:''},{l:'Daño',w:'80px'},{l:'Tipo',w:'90px'},{l:'Alcance',w:'70px'},{l:'Notas',w:''}],
+      (r,e)=>`<td><input class="list-input" value="${E(r.name||'')}" ${e}></td><td><input class="list-input" style="width:80px" value="${E(r.damage||'')}" placeholder="1d8+2" ${e}></td><td><input class="list-input" style="width:90px" value="${E(r.type||'')}" ${e}></td><td><input class="list-input" style="width:70px" value="${E(r.range||'')}" ${e}></td><td><input class="list-input" value="${E(r.notes||'')}" ${e}></td>`,
+      canEdit,'Añadir arma')}
+
+    ${tablePanel('Implantes Cibernéticos','implTbl','implant',ch.implants||[],[{l:'Implante',w:''},{l:'Slot',w:'90px'},{l:'Efecto',w:''},{l:'Notas',w:''}],
+      (r,e)=>`<td><input class="list-input" value="${E(r.name||'')}" ${e}></td><td><input class="list-input" style="width:90px" value="${E(r.slot||'')}" placeholder="Neural/Brazo" ${e}></td><td><input class="list-input" value="${E(r.effect||'')}" ${e}></td><td><input class="list-input" value="${E(r.notes||'')}" ${e}></td>`,
+      canEdit,'Añadir implante')}
+
+    ${tablePanel('Inventario','invTbl','inventory',ch.inventory||[],[{l:'Objeto',w:''},{l:'Cant.',w:'50px'},{l:'Peso',w:'50px'},{l:'Notas',w:''}],
+      (r,e)=>`<td><input class="list-input" value="${E(r.item||r.name||'')}" ${e}></td><td><input class="list-input" style="width:50px" value="${E(r.qty||'')}" ${e}></td><td><input class="list-input" style="width:50px" value="${E(r.wt||'')}" ${e}></td><td><input class="list-input" value="${E(r.notes||'')}" ${e}></td>`,
+      canEdit,'Añadir objeto')}
+
+    <div class="panel"><div class="panel-title">Trasfondo &amp; Personalidad</div>
+      <div class="form-group"><label class="form-label">Historia personal</label><textarea class="form-textarea" id="f-backstory" rows="4" placeholder="Quién eres, de dónde vienes, qué te trajo aquí..." ${ro}>${E(ch.backstory)}</textarea></div>
+      <div class="form-row">
+        <div class="form-group"><label class="form-label">Vínculos</label><textarea class="form-textarea" id="f-bonds" rows="3" placeholder="Personas y lugares que importan..." ${ro}>${E(ch.bonds)}</textarea></div>
+        <div class="form-group"><label class="form-label">Defectos</label><textarea class="form-textarea" id="f-flaws" rows="3" placeholder="Debilidades y secretos oscuros..." ${ro}>${E(ch.flaws)}</textarea></div>
+      </div>
+    </div>
+
+    <div class="panel"><div class="panel-title">Notas de Sesión</div>
+      <textarea class="form-textarea" id="f-notes" rows="6" placeholder="Apuntes libres, misiones pendientes, contactos..." ${ro}>${E(ch.notes)}</textarea>
+    </div>
+
+    ${canEdit?`<div style="display:flex;gap:1rem;margin-top:1rem;justify-content:flex-end;flex-wrap:wrap;">
+      <button class="btn btn-primary" onclick="saveSheet(${i})">◈ Guardar hoja</button>
+      <button class="btn btn-secondary" onclick="showView('players')">◄ Volver</button>
+    </div>`:''}
+  `;
+
+  if(canEdit){
+    document.getElementById('sheetPage').querySelectorAll('input:not([readonly]),textarea:not([readonly])').forEach(el=>{
+      el.addEventListener('input',()=>{dirty=true;markDirty();schedAuto(i);});
+    });
+  }
+}
+
+function tablePanel(title,tid,type,rows,cols,rowFn,canEdit,addLabel){
+  const defRow={name:'',type:'',ac:'',stealth:'',damage:'',range:'',slot:'',effect:'',item:'',qty:'',wt:'',notes:''};
+  const data=rows.length?rows:[defRow];
+  const ro=canEdit?'':'readonly';
+  return `<div class="panel"><div class="panel-title">${title}</div>
+    <table class="list-table" id="${tid}">
+      <thead><tr>${cols.map(c=>`<th>${c.l}</th>`).join('')}${canEdit?'<th></th>':''}</tr></thead>
+      <tbody>${data.map((r,i)=>`<tr>${rowFn(r,ro)}${canEdit?`<td><button class="del-btn" onclick="delRow(this)">✕</button></td>`:''}</tr>`).join('')}</tbody>
+    </table>
+    ${canEdit?`<button class="add-row-btn" onclick="addRow('${tid}','${type}',${canEdit})">${addLabel}</button>`:''}
+  </div>`;
+}
+
+function addRow(tid,type,canEdit){
+  const tb=document.querySelector('#'+tid+' tbody');
+  const empty={name:'',type:'',ac:'',stealth:'',damage:'',range:'',slot:'',effect:'',item:'',qty:'',wt:'',notes:''};
+  const ro='';
+  let html='';
+  if(type==='armor')html=`<td><input class="list-input" value="" placeholder="Nombre"></td><td><input class="list-input" style="width:90px" value=""></td><td><input class="list-input" style="width:50px" value=""></td><td><input class="list-input" style="width:70px" value=""></td><td><input class="list-input" value=""></td><td><button class="del-btn" onclick="delRow(this)">✕</button></td>`;
+  if(type==='weapon')html=`<td><input class="list-input" value="" placeholder="Nombre"></td><td><input class="list-input" style="width:80px" value="" placeholder="1d8+2"></td><td><input class="list-input" style="width:90px" value=""></td><td><input class="list-input" style="width:70px" value=""></td><td><input class="list-input" value=""></td><td><button class="del-btn" onclick="delRow(this)">✕</button></td>`;
+  if(type==='implant')html=`<td><input class="list-input" value="" placeholder="Implante"></td><td><input class="list-input" style="width:90px" value="" placeholder="Neural/Brazo"></td><td><input class="list-input" value=""></td><td><input class="list-input" value=""></td><td><button class="del-btn" onclick="delRow(this)">✕</button></td>`;
+  if(type==='inventory')html=`<td><input class="list-input" value="" placeholder="Objeto"></td><td><input class="list-input" style="width:50px" value=""></td><td><input class="list-input" style="width:50px" value=""></td><td><input class="list-input" value=""></td><td><button class="del-btn" onclick="delRow(this)">✕</button></td>`;
+  const tr=document.createElement('tr');tr.innerHTML=html;
+  tr.querySelectorAll('input').forEach(el=>el.addEventListener('input',()=>{dirty=true;markDirty();schedAuto(sheetSlot);}));
+  tb.appendChild(tr);dirty=true;markDirty();
+}
+function delRow(btn){btn.closest('tr').remove();dirty=true;markDirty();schedAuto(sheetSlot);}
+
+function onStatChange(){
+  ['fue','des','con','int','tec','peo'].forEach(s=>{
+    const v=parseInt(document.getElementById('f-stat_'+s)?.value)||10;
+    const el=document.getElementById('mod-'+s);if(el)el.textContent=md(v);
+  });
+  recalcSkills();dirty=true;markDirty();
+}
+function recalcSkills(){
+  SKILLS.forEach(sk=>{
+    const el=document.querySelector(`.skill-calc[data-s="${sk.s}"]`);if(!el)return;
+    const sv=parseInt(document.getElementById('f-'+sk.s)?.value)||10;
+    const pb=parseInt(document.getElementById('f-prof_bonus')?.value)||2;
+    const profEl=el.closest('.skill-row')?.querySelector('.skill-prof');
+    const total=Math.floor((sv-10)/2)+(profEl?.classList.contains('on')?pb:0);
+    el.textContent=(total>=0?'+':'')+total;
+  });
+  // Recalc official Carbon 2185 saves
+  [{key:'Fortaleza',stat:'stat_con'},{key:'Reflejos',stat:'stat_des'},{key:'Mente',stat:'stat_int'}].forEach(sv=>{
+    const el=document.getElementById('sv-'+sv.key);if(!el)return;
+    const base=parseInt(document.getElementById('f-'+sv.stat)?.value)||10;
+    const pb=parseInt(document.getElementById('f-prof_bonus')?.value)||2;
+    const profRow=document.querySelectorAll('.skill-row');
+    let isProficient=false;
+    profRow.forEach(row=>{if(row.querySelector('.skill-name')?.textContent.trim()===sv.key&&row.querySelector('.skill-prof')?.classList.contains('on'))isProficient=true;});
+    const total=Math.floor((base-10)/2)+(isProficient?pb:0);
+    el.textContent=(total>=0?'+':'')+total;
+  });
+}
+function tSave(el,s){el.classList.toggle('on');recalcSkills();dirty=true;markDirty();schedAuto(sheetSlot);}
+function tSkill(el,n){el.classList.toggle('on');recalcSkills();dirty=true;markDirty();schedAuto(sheetSlot);}
+function markDirty(){const b=document.getElementById('saveBadge');if(b){b.textContent='● sin guardar';b.className='save-badge dirty';}}
+function schedAuto(i){clearTimeout(saveTimer);saveTimer=setTimeout(()=>{if(dirty)saveSheet(i);},3000);}
+
+function collect(i){
+  const ch={...chars[i]||{},slot:i+1};
+  ['char_name','archetype','origin','backstory','bonds','flaws','notes'].forEach(k=>{const el=document.getElementById('f-'+k);if(el)ch[k]=el.value;});
+  ['level','prof_bonus','hp_current','hp_max','temp_hp','ac','initiative','speed','passive_perc','credits'].forEach(k=>{const el=document.getElementById('f-'+k);if(el)ch[k]=parseInt(el.value)||0;});
+  ['fue','des','con','int','tec','peo'].forEach(s=>{const el=document.getElementById('f-stat_'+s);if(el)ch['stat_'+s]=parseInt(el.value)||10;});
+  ch.saving_throws=Array.from(document.querySelectorAll('.skill-row .skill-prof.on')).filter(el=>['Fortaleza','Reflejos','Mente'].includes(el.closest('.skill-row').querySelector('.skill-name').textContent.trim())).map(el=>el.closest('.skill-row').querySelector('.skill-name').textContent.trim());
+  ch.skills={};document.querySelectorAll('.skill-calc').forEach(el=>{const n=el.closest('.skill-row')?.querySelector('.skill-name')?.textContent.trim();if(n&&el.closest('.skill-row')?.querySelector('.skill-prof')?.classList.contains('on'))ch.skills[n]=true;});
+  ch.armor=rows('#armorTbl',['name','type','ac','stealth','notes']);
+  ch.weapons=rows('#weapTbl',['name','damage','type','range','notes']);
+  ch.implants=rows('#implTbl',['name','slot','effect','notes']);
+  ch.inventory=rows('#invTbl',['item','qty','wt','notes']);
+  return ch;
+}
+function rows(sel,keys){return Array.from(document.querySelectorAll(sel+' tbody tr')).map(tr=>{const ins=tr.querySelectorAll('input');const o={};keys.forEach((k,j)=>o[k]=ins[j]?.value||'');return o;});}
+
+async function saveSheet(i){
+  const b=document.getElementById('saveBadge');if(b){b.textContent='… guardando';b.className='save-badge saving';}
+  const ch=collect(i);
+  const{error}=await sb.from('characters').update(ch).eq('slot',i+1);
+  if(error){toast('Error: '+error.message,true);if(b){b.textContent='● error';b.className='save-badge dirty';}return;}
+  chars[i]=ch;dirty=false;clearTimeout(saveTimer);
+  if(b){b.textContent='✓ guardado';b.className='save-badge saved';}
+  toast('Hoja guardada');
+}
+
+// ── SESSIONS ──────────────────────────────────────────────
+function renderSessions(){
+  const list=document.getElementById('sessionsList');if(!list)return;
+  list.innerHTML='';
+  if(!sessions.length){list.innerHTML='<div style="font-family:\'Share Tech Mono\',monospace;font-size:12px;color:var(--text-dim);padding:1rem;">// Sin bitácoras registradas aún.</div>';return;}
+  const tc=['tag-cyan','tag-amber','tag-green','tag-red'];
+  sessions.forEach(s=>{
+    const tags=(s.tags||'').split(',').map((t,i)=>t.trim()?`<span class="tag ${tc[i%4]}">${E(t.trim())}</span>`:'').join('');
+    const item=document.createElement('div');item.className='session-item';
+    item.onclick=function(){this.classList.toggle('open');};
+    item.innerHTML=`
+      <div class="session-header"><span class="session-num">${E(s.num)}</span><span class="session-title-text">${E(s.title)}</span><span class="session-date">${E(s.date_ref)}</span><span class="session-chevron">▶</span></div>
+      <div class="session-body">
+        ${s.content.split('\n').filter(p=>p.trim()).map(p=>`<p>${E(p)}</p>`).join('')}
+        <div class="session-tags">${tags}</div>
+        ${user?.isGM?`<div style="margin-top:1rem"><button class="btn btn-danger btn-xs" onclick="event.stopPropagation();delSession(${s.id})">✕ Eliminar</button></div>`:''}
+      </div>`;
+    list.appendChild(item);
+  });
+  const ab=document.getElementById('addSesBtn');if(ab&&user?.isGM)ab.style.display='block';
+}
+
+function toggleAddForm(id){document.getElementById(id)?.classList.toggle('visible');}
+
+async function publishSession(){
+  const n=document.getElementById('sNum').value||'SES // ???';
+  const t=document.getElementById('sTitle').value||'Sin título';
+  const d=document.getElementById('sDate').value||'';
+  const c=document.getElementById('sContent').value||'';
+  const tg=document.getElementById('sTags').value||'';
+  const{error}=await sb.from('sessions').insert({num:n,title:t,date_ref:d,content:c,tags:tg});
+  if(error){toast('Error: '+error.message,true);return;}
+  ['sNum','sTitle','sDate','sContent','sTags'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('addSesForm')?.classList.remove('visible');
+  toast('Bitácora publicada');
+}
+async function gmPublishSession(){
+  const n=document.getElementById('gNum').value||'SES // ???';
+  const t=document.getElementById('gTitle').value||'Sin título';
+  const d=document.getElementById('gDate').value||'';
+  const c=document.getElementById('gContent').value||'';
+  const tg=document.getElementById('gTags').value||'';
+  const{error}=await sb.from('sessions').insert({num:n,title:t,date_ref:d,content:c,tags:tg});
+  if(error){toast('Error: '+error.message,true);return;}
+  ['gNum','gTitle','gDate','gContent','gTags'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('gmSesForm')?.classList.remove('visible');
+  toast('Bitácora publicada');renderGMPanel();
+}
+async function delSession(id){if(!confirm('¿Eliminar esta bitácora?'))return;await sb.from('sessions').delete().eq('id',id);toast('Eliminada');}
+
+// ── GM PANEL ──────────────────────────────────────────────
+function renderGMPanel(){
+  const g=document.getElementById('gmGrid');if(!g)return;g.innerHTML='';
+  for(let i=0;i<4;i++){
+    const ch=chars[i]||{};
+    const pct=ch.hp_max>0?Math.max(0,Math.min(100,(ch.hp_current/ch.hp_max)*100)):100;
+    const hc=pct>60?'var(--green)':pct>30?'var(--amber)':'var(--red)';
+    const col=COLS[i];
+    const card=document.createElement('div');card.className='gm-card';
+    card.innerHTML=`
+      <div style="display:flex;align-items:flex-start;justify-content:space-between;margin-bottom:0.8rem">
+        <div><div class="gm-char-name" style="color:${col}">${ch.char_name||'Jugador '+(i+1)}</div><div class="gm-char-sub">${ch.archetype||'—'} // ${ch.origin||'—'} // Nv.${ch.level||1}</div></div>
+        <button class="btn btn-xs btn-primary" onclick="openSheet(${i})">Editar</button>
+      </div>
+      <div class="gm-hp-row"><span style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);flex-shrink:0;">HP</span><div class="gm-hp-bar"><div class="gm-hp-fill" style="width:${pct}%;background:${hc}"></div></div><span class="gm-hp-val" style="color:${hc}">${ch.hp_current||0}/${ch.hp_max||10}</span></div>
+      <div style="display:grid;grid-template-columns:repeat(4,1fr);gap:0.4rem;font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);margin-bottom:0.8rem;">
+        <div>CA<br><span style="color:var(--cyan);font-size:13px;font-family:'Orbitron',monospace">${ch.ac||10}</span></div>
+        <div>INIC<br><span style="color:var(--cyan);font-size:13px;font-family:'Orbitron',monospace">${ch.initiative||0}</span></div>
+        <div>₩<br><span style="color:var(--amber);font-size:13px;font-family:'Orbitron',monospace">${ch.credits||0}</span></div>
+        <div>HP TMP<br><span style="color:var(--amber);font-size:13px;font-family:'Orbitron',monospace">${ch.temp_hp||0}</span></div>
+      </div>
+      `;
+    g.appendChild(card);
+  }
+  const gs=document.getElementById('gmSessList');if(!gs)return;
+  gs.innerHTML=sessions.length?sessions.map(s=>`<div style="background:var(--panel);border:1px solid var(--border);padding:0.8rem 1.2rem;margin-bottom:1px;display:flex;align-items:center;gap:1rem;"><span style="font-family:'Orbitron',monospace;font-size:11px;color:var(--cyan);min-width:80px;">${E(s.num)}</span><span style="font-family:'Orbitron',monospace;font-size:0.85rem;color:#fff;flex:1;">${E(s.title)}</span><span style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);">${E(s.date_ref)}</span><button class="btn btn-danger btn-xs" onclick="delSession(${s.id})">✕</button></div>`).join(''):'<div style="font-family:\'Share Tech Mono\',monospace;font-size:12px;color:var(--text-dim)">// Sin bitácoras.</div>';
+}
+
+async function applyHP(i,sign){
+  const delta=parseInt(document.getElementById('d-'+i).value)||0;if(!delta)return;
+  const ch=chars[i]||{};
+  const newHP=Math.max(0,Math.min(ch.hp_max||10,(ch.hp_current||0)+(delta*sign)));
+  const{error}=await sb.from('characters').update({hp_current:newHP}).eq('slot',i+1);
+  if(error){toast('Error: '+error.message,true);return;}
+  chars[i]={...ch,hp_current:newHP};
+  document.getElementById('d-'+i).value='';
+  renderGMPanel();toast(`Jugador ${i+1} HP: ${newHP}/${ch.hp_max||10}`);
+}
+
+// ── UTILS ─────────────────────────────────────────────────
+function E(s){if(!s)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function toast(msg,isErr=false){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show'+(isErr?' err':'');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),3000);}
+
+// ── INITIATIVE TRACKER ───────────────────────────────────
+function openTracker(){
+  const w=800,h=700;
+  const left=Math.round((screen.width-w)/2);
+  const top=Math.round((screen.height-h)/2);
+  window.open(
+    'initiative-tracker.html',
+    'initiative_tracker',
+    `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes,toolbar=no,menubar=no,location=no,status=no`
+  );
+}
+
+// ── THEME ─────────────────────────────────────────────────
+function toggleTheme(){
+  const isLight=document.body.classList.toggle('light');
+  localStorage.setItem('c2185_theme',isLight?'light':'dark');
+  updateThemeBtn(isLight);
+}
+function updateThemeBtn(isLight){
+  const icon=document.getElementById('themeIcon');
+  const label=document.getElementById('themeLabel');
+  if(!icon||!label)return;
+  if(isLight){icon.textContent='🌙';label.textContent='OSCURO';}
+  else{icon.textContent='☀';label.textContent='CLARO';}
+}
+// Apply saved theme immediately
+(function(){
+  const saved=localStorage.getItem('c2185_theme');
+  if(saved==='light'){document.body.classList.add('light');updateThemeBtn(true);}
+})();
+</script>
+</body>
+</html>
