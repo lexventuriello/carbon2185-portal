@@ -1,0 +1,712 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TRACKER DE INICIATIVA // CARBON 2185</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Orbitron:wght@400;700;900&family=Rajdhani:wght@300;400;600&display=swap" rel="stylesheet">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<style>
+:root{
+  --cyan:#00f5ff;--cyan-dim:#00b8c4;--green:#39ff14;--green-dim:#1a7a00;
+  --red:#ff2244;--amber:#ffaa00;--purple:#b44fff;--orange:#ff6b00;
+  --bg:#050a0e;--panel:#0c1c27;--panel2:#0f2233;--panel3:#060e14;
+  --border:rgba(0,245,255,0.18);--border-bright:rgba(0,245,255,0.55);
+  --text:#c8e8ee;--text-dim:#5a8a96;
+  --glow-cyan:0 0 8px rgba(0,245,255,0.6),0 0 20px rgba(0,245,255,0.15);
+  --glow-green:0 0 8px rgba(57,255,20,0.5);
+  --glow-amber:0 0 8px rgba(255,170,0,0.5);
+  --glow-red:0 0 8px rgba(255,34,68,0.6);
+}
+*{box-sizing:border-box;margin:0;padding:0;}
+body{background:var(--bg);color:var(--text);font-family:'Rajdhani',sans-serif;font-size:16px;line-height:1.5;overflow-x:hidden;min-height:100vh;}
+body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,0.06) 2px,rgba(0,0,0,0.06) 4px);pointer-events:none;z-index:9999;}
+body::after{content:'';position:fixed;inset:0;background-image:linear-gradient(rgba(0,245,255,0.03) 1px,transparent 1px),linear-gradient(90deg,rgba(0,245,255,0.03) 1px,transparent 1px);background-size:40px 40px;pointer-events:none;z-index:0;}
+
+/* ── TOPBAR ── */
+.topbar{position:sticky;top:0;z-index:100;background:rgba(5,10,14,0.97);border-bottom:1px solid var(--border-bright);display:flex;align-items:center;justify-content:space-between;padding:0 1.5rem;height:54px;backdrop-filter:blur(8px);}
+.topbar-brand{font-family:'Orbitron',monospace;font-size:13px;font-weight:900;color:var(--cyan);text-shadow:var(--glow-cyan);letter-spacing:3px;}
+.topbar-brand span{color:var(--green);text-shadow:var(--glow-green);}
+.topbar-right{display:flex;align-items:center;gap:0.8rem;}
+.topbar-role{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--cyan-dim);letter-spacing:2px;padding:0.2rem 0.6rem;border:1px solid var(--border);}
+.pulse{width:7px;height:7px;border-radius:50%;background:var(--green);box-shadow:var(--glow-green);animation:blink 1.8s infinite;flex-shrink:0;}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:0.2}}
+.status-dot{display:flex;align-items:center;gap:6px;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--green);}
+
+/* ── BUTTONS ── */
+.btn{display:inline-flex;align-items:center;gap:6px;padding:0.55rem 1.3rem;font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:1.5px;text-transform:uppercase;border:1px solid;cursor:pointer;transition:all 0.2s;background:transparent;position:relative;overflow:hidden;}
+.btn::before{content:'';position:absolute;inset:0;background:currentColor;opacity:0;transition:opacity 0.2s;}
+.btn:hover::before{opacity:0.1;}
+.btn-primary{color:var(--cyan);border-color:var(--cyan);box-shadow:var(--glow-cyan);}
+.btn-primary:hover{box-shadow:0 0 14px rgba(0,245,255,0.8);}
+.btn-secondary{color:var(--green);border-color:var(--green-dim);}
+.btn-secondary:hover{border-color:var(--green);box-shadow:var(--glow-green);}
+.btn-danger{color:var(--red);border-color:rgba(255,34,68,0.35);}
+.btn-danger:hover{border-color:var(--red);box-shadow:var(--glow-red);}
+.btn-amber{color:var(--amber);border-color:rgba(255,170,0,0.35);}
+.btn-amber:hover{border-color:var(--amber);box-shadow:var(--glow-amber);}
+.btn-sm{padding:0.35rem 0.9rem;font-size:11px;}
+.btn-xs{padding:0.2rem 0.6rem;font-size:10px;}
+.btn:disabled{opacity:0.3;cursor:not-allowed;pointer-events:none;}
+
+/* ── LOGIN ── */
+.login-wrap{position:relative;z-index:1;min-height:100vh;display:flex;align-items:center;justify-content:center;padding:2rem;}
+.login-box{background:var(--panel);border:1px solid var(--border-bright);padding:2.5rem;width:100%;max-width:400px;position:relative;}
+.login-box::before{content:'';position:absolute;top:0;left:0;right:0;height:3px;background:linear-gradient(to right,var(--cyan),var(--green));}
+.login-title{font-family:'Orbitron',monospace;font-size:1.4rem;font-weight:900;color:#fff;letter-spacing:2px;margin-bottom:0.3rem;}
+.login-sub{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--cyan-dim);letter-spacing:3px;text-transform:uppercase;margin-bottom:1.5rem;}
+.login-input{width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:1rem;letter-spacing:3px;padding:0.8rem 1rem;outline:none;transition:border-color 0.2s;text-transform:uppercase;margin-bottom:0.8rem;}
+.login-input:focus{border-color:var(--cyan-dim);}
+.login-codes{background:var(--panel2);border:1px solid var(--border);padding:0.8rem 1rem;margin-bottom:1.2rem;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text-dim);line-height:2;}
+.login-codes strong{color:var(--cyan);}
+.login-err{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--red);margin-top:0.5rem;min-height:16px;}
+
+/* ── MAIN LAYOUT ── */
+.main{position:relative;z-index:1;padding:1.2rem 1.5rem 4rem;max-width:1100px;margin:0 auto;}
+
+/* ── ROUND HEADER ── */
+.round-header{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.2rem;flex-wrap:wrap;gap:0.8rem;}
+.round-display{display:flex;align-items:center;gap:1rem;}
+.round-label{font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:4px;color:var(--text-dim);text-transform:uppercase;}
+.round-num{font-family:'Orbitron',monospace;font-size:2.5rem;font-weight:900;color:var(--cyan);text-shadow:var(--glow-cyan);line-height:1;}
+.combat-status{display:flex;align-items:center;gap:8px;font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:2px;text-transform:uppercase;}
+.combat-status.active{color:var(--green);text-shadow:var(--glow-green);}
+.combat-status.inactive{color:var(--text-dim);}
+.combat-status-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0;}
+.combat-status.active .combat-status-dot{background:var(--green);box-shadow:var(--glow-green);animation:blink 1s infinite;}
+.combat-status.inactive .combat-status-dot{background:var(--text-dim);}
+
+/* ── GM CONTROLS ── */
+.gm-controls{background:var(--panel2);border:1px solid var(--border);padding:1rem 1.2rem;margin-bottom:1.2rem;}
+.gm-controls-title{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:3px;color:var(--cyan-dim);text-transform:uppercase;margin-bottom:0.8rem;display:flex;align-items:center;gap:6px;}
+.gm-controls-title::before{content:'';width:5px;height:5px;border-radius:50%;background:var(--cyan);flex-shrink:0;}
+.gm-btn-row{display:flex;gap:0.6rem;flex-wrap:wrap;align-items:center;}
+
+/* ── ADD FORM ── */
+.add-form{background:var(--panel2);border:1px solid var(--border);border-left:3px solid var(--cyan);padding:1rem 1.2rem;margin-bottom:1.2rem;display:none;}
+.add-form.visible{display:block;}
+.add-form-title{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:3px;color:var(--cyan);text-transform:uppercase;margin-bottom:0.8rem;}
+.add-form-grid{display:grid;grid-template-columns:2fr 1fr 1fr 1fr auto;gap:0.6rem;align-items:end;}
+.form-group{display:flex;flex-direction:column;gap:0.2rem;}
+.form-label{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--cyan-dim);text-transform:uppercase;}
+.form-input{background:var(--panel);border:1px solid var(--border);color:var(--text);font-family:'Rajdhani',sans-serif;font-size:0.95rem;padding:0.45rem 0.7rem;outline:none;transition:border-color 0.2s;width:100%;}
+.form-input:focus{border-color:var(--cyan-dim);}
+.form-select{background:var(--panel);border:1px solid var(--border);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:11px;padding:0.45rem 0.7rem;outline:none;width:100%;cursor:pointer;}
+.form-select:focus{border-color:var(--cyan-dim);}
+.type-selector{display:flex;gap:0.4rem;}
+.type-btn{padding:0.35rem 0.8rem;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;text-transform:uppercase;border:1px solid var(--border);cursor:pointer;transition:all 0.2s;background:transparent;color:var(--text-dim);}
+.type-btn.active-player{color:var(--cyan);border-color:var(--cyan);background:rgba(0,245,255,0.08);}
+.type-btn.active-npc{color:var(--amber);border-color:var(--amber);background:rgba(255,170,0,0.08);}
+.type-btn.active-enemy{color:var(--red);border-color:var(--red);background:rgba(255,34,68,0.08);}
+
+/* ── COMBATANT LIST ── */
+.combatants-list{display:flex;flex-direction:column;gap:3px;}
+
+.combatant-row{
+  display:grid;
+  grid-template-columns:44px 1fr 90px 120px 100px auto;
+  gap:0.6rem;align-items:center;
+  padding:0.7rem 1rem;
+  background:var(--panel);border:1px solid var(--border);
+  border-left:4px solid var(--border);
+  transition:all 0.25s;position:relative;
+}
+.combatant-row.type-player{border-left-color:var(--cyan);}
+.combatant-row.type-npc{border-left-color:var(--amber);}
+.combatant-row.type-enemy{border-left-color:var(--red);}
+.combatant-row.active-turn{
+  background:var(--panel2);
+  border-color:var(--border-bright);
+  box-shadow:0 0 20px rgba(0,245,255,0.08);
+}
+.combatant-row.active-turn.type-player{border-left-color:var(--cyan);box-shadow:0 0 20px rgba(0,245,255,0.12);}
+.combatant-row.active-turn.type-npc{border-left-color:var(--amber);box-shadow:0 0 20px rgba(255,170,0,0.1);}
+.combatant-row.active-turn.type-enemy{border-left-color:var(--red);box-shadow:0 0 20px rgba(255,34,68,0.1);}
+.combatant-row.dead{opacity:0.35;filter:grayscale(0.5);}
+
+/* turn indicator */
+.turn-indicator{display:flex;align-items:center;justify-content:center;}
+.turn-arrow{font-size:20px;color:var(--cyan);text-shadow:var(--glow-cyan);animation:arrowPulse 0.8s infinite alternate;display:none;}
+.active-turn .turn-arrow{display:block;}
+@keyframes arrowPulse{from{transform:translateX(-3px);opacity:0.7}to{transform:translateX(3px);opacity:1}}
+
+/* name block */
+.combatant-name-block{display:flex;flex-direction:column;gap:0.1rem;min-width:0;}
+.combatant-name{font-family:'Orbitron',monospace;font-size:0.85rem;font-weight:700;color:#fff;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.active-turn.type-player .combatant-name{color:var(--cyan);text-shadow:var(--glow-cyan);}
+.active-turn.type-npc .combatant-name{color:var(--amber);text-shadow:var(--glow-amber);}
+.active-turn.type-enemy .combatant-name{color:var(--red);text-shadow:var(--glow-red);}
+.combatant-type-badge{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;text-transform:uppercase;}
+.type-player .combatant-type-badge{color:rgba(0,245,255,0.5);}
+.type-npc .combatant-type-badge{color:rgba(255,170,0,0.5);}
+.type-enemy .combatant-type-badge{color:rgba(255,34,68,0.5);}
+
+/* initiative score */
+.init-block{text-align:center;}
+.init-label{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:2px;color:var(--text-dim);text-transform:uppercase;}
+.init-val{font-family:'Orbitron',monospace;font-size:1.3rem;font-weight:900;}
+.type-player .init-val{color:var(--cyan);}
+.type-npc .init-val{color:var(--amber);}
+.type-enemy .init-val{color:var(--red);}
+.init-input{font-family:'Orbitron',monospace;font-size:1.2rem;font-weight:900;width:60px;text-align:center;background:var(--panel3);border:1px solid var(--border);color:inherit;outline:none;padding:0.2rem;transition:border-color 0.2s;}
+.init-input:focus{border-color:var(--cyan-dim);}
+
+/* HP block */
+.hp-block{display:flex;flex-direction:column;gap:0.3rem;}
+.hp-label{font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:2px;color:var(--text-dim);text-transform:uppercase;text-align:center;}
+.hp-bar-wrap{height:5px;background:rgba(255,255,255,0.07);}
+.hp-bar-fill{height:100%;transition:width 0.4s;}
+.hp-inputs{display:flex;align-items:center;gap:4px;justify-content:center;}
+.hp-num{font-family:'Orbitron',monospace;font-size:0.85rem;font-weight:700;width:40px;text-align:center;background:var(--panel3);border:1px solid var(--border);outline:none;padding:0.15rem;transition:border-color 0.2s;}
+.hp-num:focus{border-color:var(--cyan-dim);}
+.hp-num.current{color:var(--green);}
+.hp-sep{font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);}
+
+/* conditions */
+.conditions-block{display:flex;flex-wrap:wrap;gap:3px;align-items:center;}
+.condition-tag{padding:0.1rem 0.4rem;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;text-transform:uppercase;border:1px solid;cursor:pointer;transition:opacity 0.2s;}
+.condition-tag:hover{opacity:0.7;}
+.cond-stunned{color:#ff9f43;border-color:rgba(255,159,67,0.4);background:rgba(255,159,67,0.08);}
+.cond-prone{color:#a29bfe;border-color:rgba(162,155,254,0.4);background:rgba(162,155,254,0.08);}
+.cond-blind{color:#fd79a8;border-color:rgba(253,121,168,0.4);background:rgba(253,121,168,0.08);}
+.cond-slow{color:#74b9ff;border-color:rgba(116,185,255,0.4);background:rgba(116,185,255,0.08);}
+.cond-dead{color:var(--red);border-color:rgba(255,34,68,0.4);background:rgba(255,34,68,0.08);}
+.cond-add{font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text-dim);cursor:pointer;padding:0.1rem 0.3rem;border:1px dashed rgba(255,255,255,0.1);transition:all 0.2s;}
+.cond-add:hover{color:var(--cyan-dim);border-color:var(--border);}
+
+/* actions */
+.combatant-actions{display:flex;gap:0.3rem;align-items:center;flex-shrink:0;}
+
+/* EMPTY STATE */
+.empty-state{text-align:center;padding:4rem 2rem;font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--text-dim);letter-spacing:2px;border:1px dashed rgba(0,245,255,0.1);}
+.empty-state-icon{font-size:2.5rem;margin-bottom:1rem;opacity:0.3;}
+
+/* LEGEND */
+.legend{display:flex;gap:1.2rem;flex-wrap:wrap;margin-bottom:1rem;padding:0.6rem 1rem;background:var(--panel2);border:1px solid var(--border);}
+.legend-item{display:flex;align-items:center;gap:6px;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1.5px;text-transform:uppercase;}
+.legend-dot{width:10px;height:10px;border-radius:1px;flex-shrink:0;}
+
+/* TOAST */
+.toast{position:fixed;bottom:1.5rem;right:1.5rem;background:var(--panel2);border:1px solid var(--border-bright);padding:0.7rem 1.4rem;font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--cyan);letter-spacing:2px;z-index:9998;transform:translateY(100px);opacity:0;transition:all 0.3s;}
+.toast.show{transform:translateY(0);opacity:1;}
+.toast.err{color:var(--red);border-color:rgba(255,34,68,0.5);}
+
+/* PLAYER VIEW — read only banner */
+.player-banner{background:rgba(0,245,255,0.05);border:1px solid rgba(0,245,255,0.2);padding:0.6rem 1rem;margin-bottom:1rem;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--cyan-dim);letter-spacing:2px;text-align:center;}
+
+/* ACTIVE HIGHLIGHT BAR */
+.active-bar{height:2px;background:linear-gradient(to right,var(--cyan),transparent);margin-bottom:1.2rem;box-shadow:var(--glow-cyan);}
+
+@media(max-width:700px){
+  .combatant-row{grid-template-columns:36px 1fr 70px auto;gap:0.4rem;}
+  .hp-block,.conditions-block{display:none;}
+  .add-form-grid{grid-template-columns:1fr 1fr;}
+}
+</style>
+</head>
+<body>
+<div class="toast" id="toast"></div>
+
+<!-- ══ LOGIN ══ -->
+<div id="viewLogin">
+  <div class="login-wrap">
+    <div class="login-box">
+      <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--cyan-dim);letter-spacing:4px;margin-bottom:1.5rem;">CARBON 2185</div>
+      <div class="login-title">TRACKER DE<br>INICIATIVA</div>
+      <div class="login-sub">Ingresa tu código de acceso</div>
+      <div class="login-codes">
+        <div>Jugadores: <strong>NEON-01</strong> <strong>NEON-02</strong> <strong>NEON-03</strong> <strong>NEON-04</strong></div>
+        <div>Master / GM: <strong>MASTER-2185</strong></div>
+      </div>
+      <input class="login-input" id="loginCode" type="text" placeholder="NEON-01" autocomplete="off" onkeydown="if(event.key==='Enter')doLogin()">
+      <button class="btn btn-primary" style="width:100%;justify-content:center;" onclick="doLogin()">◈ Acceder</button>
+      <div class="login-err" id="loginErr"></div>
+    </div>
+  </div>
+</div>
+
+<!-- ══ APP ══ -->
+<div id="viewApp" style="display:none;">
+  <div class="topbar">
+    <div class="topbar-brand">CARBON <span>2185</span> // INICIATIVA</div>
+    <div class="topbar-right">
+      <div class="topbar-role" id="topRole"></div>
+      <div class="status-dot"><div class="pulse"></div>EN LÍNEA</div>
+      <button class="btn btn-sm" style="color:var(--text-dim);border-color:rgba(255,255,255,0.1);" onclick="logout()">✕ Salir</button>
+    </div>
+  </div>
+
+  <div class="main">
+
+    <!-- ROUND + STATUS -->
+    <div class="round-header">
+      <div class="round-display">
+        <div>
+          <div class="round-label">Ronda</div>
+          <div class="round-num" id="roundNum">1</div>
+        </div>
+        <div class="combat-status inactive" id="combatStatus">
+          <div class="combat-status-dot"></div>
+          <span id="combatStatusTxt">EN ESPERA</span>
+        </div>
+      </div>
+      <div id="gmControls" style="display:none;">
+        <div class="gm-controls">
+          <div class="gm-controls-title">Controles del GM</div>
+          <div class="gm-btn-row">
+            <button class="btn btn-secondary" id="btnStart" onclick="startCombat()">▶ Iniciar combate</button>
+            <button class="btn btn-primary" id="btnNext" onclick="nextTurn()" disabled>⬡ Siguiente turno</button>
+            <button class="btn btn-amber" onclick="prevTurn()" id="btnPrev" disabled>◄ Turno anterior</button>
+            <button class="btn btn-xs" style="color:var(--text-dim);border-color:rgba(255,255,255,0.1);" onclick="sortByInit()">↕ Ordenar</button>
+            <button class="btn btn-xs" style="color:var(--text-dim);border-color:rgba(255,255,255,0.1);" onclick="resetRound()">↺ Reset ronda</button>
+            <button class="btn btn-danger btn-xs" onclick="clearAll()">✕ Limpiar todo</button>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- PLAYER VIEW BANNER -->
+    <div class="player-banner" id="playerBanner" style="display:none;">
+      // Modo espectador — solo el GM puede editar el tracker
+    </div>
+
+    <!-- LEGEND -->
+    <div class="legend">
+      <div class="legend-item"><div class="legend-dot" style="background:var(--cyan)"></div>Jugador</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--amber)"></div>NPC aliado</div>
+      <div class="legend-item"><div class="legend-dot" style="background:var(--red)"></div>Enemigo</div>
+      <div class="legend-item" style="margin-left:auto;">
+        <span style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);">▶ = turno activo</span>
+      </div>
+    </div>
+
+    <!-- ADD FORM (GM only) -->
+    <div class="add-form" id="addForm">
+      <div class="add-form-title">// Añadir combatiente</div>
+      <div class="add-form-grid">
+        <div class="form-group">
+          <label class="form-label">Nombre</label>
+          <input class="form-input" id="newName" placeholder="Nombre del combatiente" onkeydown="if(event.key==='Enter')addCombatant()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Iniciativa</label>
+          <input class="form-input" id="newInit" type="number" placeholder="15" style="width:80px" onkeydown="if(event.key==='Enter')addCombatant()">
+        </div>
+        <div class="form-group">
+          <label class="form-label">HP Máx</label>
+          <input class="form-input" id="newHPMax" type="number" placeholder="30" style="width:80px">
+        </div>
+        <div class="form-group">
+          <label class="form-label">Tipo</label>
+          <div class="type-selector">
+            <button class="type-btn active-player" id="typeBtnPlayer" onclick="setType('player')">Jugador</button>
+            <button class="type-btn" id="typeBtnNpc" onclick="setType('npc')">NPC</button>
+            <button class="type-btn" id="typeBtnEnemy" onclick="setType('enemy')">Enemigo</button>
+          </div>
+        </div>
+        <div class="form-group" style="justify-content:flex-end;">
+          <button class="btn btn-primary btn-sm" onclick="addCombatant()">+ Añadir</button>
+        </div>
+      </div>
+      <!-- Quick add player slots -->
+      <div id="quickAddPlayers" style="margin-top:0.8rem;padding-top:0.8rem;border-top:1px solid var(--border);display:flex;gap:0.4rem;flex-wrap:wrap;align-items:center;">
+        <span style="font-family:'Share Tech Mono',monospace;font-size:9px;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;">Añadir jugador rápido:</span>
+      </div>
+    </div>
+
+    <!-- ADD BTN (GM) -->
+    <div id="addBtnRow" style="display:none;margin-bottom:1rem;">
+      <button class="btn btn-secondary" onclick="toggleAddForm()">+ Añadir combatiente</button>
+    </div>
+
+    <!-- ACTIVE BAR -->
+    <div class="active-bar" id="activeTurnBar" style="display:none;"></div>
+
+    <!-- COMBATANTS -->
+    <div class="combatants-list" id="combatantsList"></div>
+
+  </div>
+</div>
+
+<script>
+// ── CONFIG ──────────────────────────────────────────────
+const SUPA_URL='https://zgzueeoxnqmzpdzofhxx.supabase.co';
+const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnenVlZW94bnFtenBkem9maHh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5ODI4NjIsImV4cCI6MjA5MzU1ODg2Mn0.PF_TKkSEuY7pAdW5T3E7Yk3h_ApkB_dEWua4e33VqJw';
+const GM_CODE='MASTER-2185';
+const sb=window.supabase.createClient(SUPA_URL,SUPA_KEY);
+
+const CONDITIONS=['Aturdido','Tumbado','Cegado','Lento','Muerto'];
+const COND_CLASSES={Aturdido:'cond-stunned',Tumbado:'cond-prone',Cegado:'cond-blind',Lento:'cond-slow',Muerto:'cond-dead'};
+
+let user=null, state={combatants:[],round:1,active_idx:0,is_active:false}, rowId=null, newType='player', rtSub=null, saveTimer=null, chars=[];
+
+// ── LOGIN ──────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded',async()=>{
+  const saved=sessionStorage.getItem('c2185_init_user');
+  if(saved){try{user=JSON.parse(saved);await init();}catch(e){sessionStorage.removeItem('c2185_init_user');}}
+});
+
+async function doLogin(){
+  const code=document.getElementById('loginCode').value.trim().toUpperCase();
+  const err=document.getElementById('loginErr');err.textContent='';
+  if(!code){err.textContent='// Ingresa tu código';return;}
+  if(code===GM_CODE){user={slot:0,code:GM_CODE,isGM:true};sessionStorage.setItem('c2185_init_user',JSON.stringify(user));await init();return;}
+  const{data,error}=await sb.from('players').select('*').eq('code',code).single();
+  if(error||!data){err.textContent='// Código no reconocido';return;}
+  user={slot:data.slot,code:data.code,isGM:false,player_name:data.player_name};
+  sessionStorage.setItem('c2185_init_user',JSON.stringify(user));
+  await init();
+}
+
+function logout(){sessionStorage.removeItem('c2185_init_user');user=null;if(rtSub)sb.removeChannel(rtSub);document.getElementById('viewLogin').style.display='block';document.getElementById('viewApp').style.display='none';}
+
+// ── INIT ──────────────────────────────────────────────
+async function init(){
+  // Load characters for quick-add
+  const{data:chData}=await sb.from('characters').select('slot,char_name,hp_max,initiative').order('slot');
+  if(chData)chars=chData;
+
+  // Load initiative state
+  const{data,error}=await sb.from('initiative').select('*').eq('campaign_id','default').single();
+  if(!error&&data){rowId=data.id;state={combatants:data.combatants||[],round:data.round||1,active_idx:data.active_idx||0,is_active:data.is_active||false};}
+  else{
+    const{data:ins}=await sb.from('initiative').insert({campaign_id:'default',combatants:[],round:1,active_idx:0,is_active:false}).select().single();
+    if(ins)rowId=ins.id;
+  }
+
+  // UI setup
+  document.getElementById('viewLogin').style.display='none';
+  document.getElementById('viewApp').style.display='block';
+  document.getElementById('topRole').textContent=user.isGM?'⬡ GM':user.code;
+  if(user.isGM){
+    document.getElementById('gmControls').style.display='block';
+    document.getElementById('addBtnRow').style.display='block';
+    buildQuickAdd();
+  } else {
+    document.getElementById('playerBanner').style.display='block';
+  }
+
+  render();
+  subscribeRT();
+}
+
+// ── REALTIME ──────────────────────────────────────────
+function subscribeRT(){
+  rtSub=sb.channel('initiative_rt')
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'initiative',filter:`campaign_id=eq.default`},p=>{
+      if(p.new){state={combatants:p.new.combatants||[],round:p.new.round||1,active_idx:p.new.active_idx||0,is_active:p.new.is_active||false};}
+      render();
+    }).subscribe();
+}
+
+// ── SAVE ──────────────────────────────────────────────
+async function saveState(){
+  if(!rowId)return;
+  await sb.from('initiative').update({combatants:state.combatants,round:state.round,active_idx:state.active_idx,is_active:state.is_active,updated_at:new Date()}).eq('id',rowId);
+}
+function schedSave(){clearTimeout(saveTimer);saveTimer=setTimeout(saveState,500);}
+
+// ── COMBAT CONTROLS ───────────────────────────────────
+function startCombat(){
+  if(state.combatants.length===0){toast('Añade combatientes primero',true);return;}
+  if(!state.is_active){sortByInit();state.active_idx=0;}
+  state.is_active=!state.is_active;
+  if(!state.is_active){state.round=1;state.active_idx=0;}
+  render();saveState();
+}
+
+function nextTurn(){
+  const alive=state.combatants.filter(c=>!c.conditions?.includes('Muerto'));
+  if(!alive.length)return;
+  let next=state.active_idx+1;
+  while(next<state.combatants.length&&state.combatants[next].conditions?.includes('Muerto'))next++;
+  if(next>=state.combatants.length){state.round++;next=0;while(next<state.combatants.length&&state.combatants[next].conditions?.includes('Muerto'))next++;}
+  state.active_idx=next;
+  render();saveState();
+  toast(`Turno: ${state.combatants[state.active_idx]?.name||'?'}`);
+}
+
+function prevTurn(){
+  let prev=state.active_idx-1;
+  if(prev<0){state.round=Math.max(1,state.round-1);prev=state.combatants.length-1;}
+  while(prev>0&&state.combatants[prev].conditions?.includes('Muerto'))prev--;
+  state.active_idx=prev;
+  render();saveState();
+}
+
+function sortByInit(){
+  state.combatants.sort((a,b)=>(parseInt(b.initiative)||0)-(parseInt(a.initiative)||0));
+  state.active_idx=0;render();schedSave();
+  toast('Ordenado por iniciativa');
+}
+
+function resetRound(){state.round=1;state.active_idx=0;render();saveState();toast('Ronda reiniciada');}
+
+function clearAll(){
+  if(!confirm('¿Limpiar todos los combatientes?'))return;
+  state.combatants=[];state.round=1;state.active_idx=0;state.is_active=false;
+  render();saveState();toast('Tracker limpiado');
+}
+
+// ── ADD COMBATANT ──────────────────────────────────────
+function setType(t){
+  newType=t;
+  ['player','npc','enemy'].forEach(x=>{
+    const btn=document.getElementById('typeBtn'+x.charAt(0).toUpperCase()+x.slice(1));
+    btn.className='type-btn'+(t===x?' active-'+x:'');
+  });
+}
+
+function toggleAddForm(){document.getElementById('addForm').classList.toggle('visible');}
+
+function addCombatant(){
+  const name=document.getElementById('newName').value.trim();
+  if(!name){toast('Ingresa un nombre',true);return;}
+  const initiative=parseInt(document.getElementById('newInit').value)||0;
+  const hpMax=parseInt(document.getElementById('newHPMax').value)||0;
+  const c={id:Date.now(),name,initiative,hp_current:hpMax,hp_max:hpMax,type:newType,conditions:[]};
+  state.combatants.push(c);
+  document.getElementById('newName').value='';
+  document.getElementById('newInit').value='';
+  document.getElementById('newHPMax').value='';
+  render();schedSave();toast(`${name} añadido`);
+}
+
+function addFromChar(slot){
+  const ch=chars.find(c=>c.slot===slot);
+  if(!ch)return;
+  const name=ch.char_name||'Jugador '+slot;
+  const hpMax=ch.hp_max||10;
+  const initiative=ch.initiative||0;
+  const c={id:Date.now(),name,initiative,hp_current:hpMax,hp_max:hpMax,type:'player',conditions:[],slot};
+  state.combatants.push(c);
+  render();schedSave();toast(`${name} añadido`);
+}
+
+function buildQuickAdd(){
+  const row=document.getElementById('quickAddPlayers');
+  chars.forEach(ch=>{
+    const name=ch.char_name||'Jugador '+ch.slot;
+    const btn=document.createElement('button');
+    btn.className='btn btn-xs';
+    btn.style.cssText='color:var(--cyan);border-color:rgba(0,245,255,0.3);';
+    btn.textContent='+ '+name;
+    btn.onclick=()=>addFromChar(ch.slot);
+    row.appendChild(btn);
+  });
+}
+
+// ── EDIT ──────────────────────────────────────────────
+function updateInit(id,val){
+  const c=state.combatants.find(x=>x.id===id);if(!c)return;
+  c.initiative=parseInt(val)||0;schedSave();
+}
+function updateHPCur(id,val){
+  const c=state.combatants.find(x=>x.id===id);if(!c)return;
+  c.hp_current=parseInt(val)||0;schedSave();
+}
+function updateHPMax(id,val){
+  const c=state.combatants.find(x=>x.id===id);if(!c)return;
+  c.hp_max=parseInt(val)||0;schedSave();
+}
+function applyDamage(id,amount){
+  const c=state.combatants.find(x=>x.id===id);if(!c)return;
+  c.hp_current=Math.max(0,c.hp_current-amount);
+  if(c.hp_current===0&&!c.conditions.includes('Muerto'))c.conditions.push('Muerto');
+  render();schedSave();
+  toast(`${c.name}: ${c.hp_current}/${c.hp_max} HP`);
+}
+function applyHeal(id,amount){
+  const c=state.combatants.find(x=>x.id===id);if(!c)return;
+  c.hp_current=Math.min(c.hp_max||999,c.hp_current+amount);
+  c.conditions=c.conditions.filter(x=>x!=='Muerto');
+  render();schedSave();
+  toast(`${c.name}: ${c.hp_current}/${c.hp_max} HP`);
+}
+
+function toggleCondition(id,cond){
+  const c=state.combatants.find(x=>x.id===id);if(!c)return;
+  if(c.conditions.includes(cond))c.conditions=c.conditions.filter(x=>x!==cond);
+  else c.conditions.push(cond);
+  render();schedSave();
+}
+
+function removeCombatant(id){
+  state.combatants=state.combatants.filter(x=>x.id!==id);
+  if(state.active_idx>=state.combatants.length)state.active_idx=Math.max(0,state.combatants.length-1);
+  render();schedSave();
+}
+
+function moveCombatant(id,dir){
+  const idx=state.combatants.findIndex(x=>x.id===id);if(idx<0)return;
+  const newIdx=idx+dir;
+  if(newIdx<0||newIdx>=state.combatants.length)return;
+  [state.combatants[idx],state.combatants[newIdx]]=[state.combatants[newIdx],state.combatants[idx]];
+  if(state.active_idx===idx)state.active_idx=newIdx;
+  else if(state.active_idx===newIdx)state.active_idx=idx;
+  render();schedSave();
+}
+
+// ── RENDER ────────────────────────────────────────────
+function render(){
+  // Round
+  document.getElementById('roundNum').textContent=state.round;
+
+  // Combat status
+  const statusEl=document.getElementById('combatStatus');
+  const statusTxt=document.getElementById('combatStatusTxt');
+  statusEl.className='combat-status '+(state.is_active?'active':'inactive');
+  statusTxt.textContent=state.is_active?'COMBATE ACTIVO':'EN ESPERA';
+
+  // Active bar
+  document.getElementById('activeTurnBar').style.display=state.is_active?'block':'none';
+
+  // GM buttons
+  if(user?.isGM){
+    const btnStart=document.getElementById('btnStart');
+    btnStart.textContent=state.is_active?'⬛ Detener combate':'▶ Iniciar combate';
+    btnStart.className='btn '+(state.is_active?'btn-danger':'btn-secondary');
+    document.getElementById('btnNext').disabled=!state.is_active;
+    document.getElementById('btnPrev').disabled=!state.is_active;
+  }
+
+  // Combatants
+  const list=document.getElementById('combatantsList');
+  if(!state.combatants.length){
+    list.innerHTML=`<div class="empty-state"><div class="empty-state-icon">⬡</div>// Sin combatientes<br><br>Añade jugadores, NPCs o enemigos para comenzar</div>`;
+    return;
+  }
+
+  list.innerHTML='';
+  state.combatants.forEach((c,idx)=>{
+    const isActive=state.is_active&&idx===state.active_idx;
+    const isDead=c.conditions?.includes('Muerto');
+    const hpPct=c.hp_max>0?Math.max(0,Math.min(100,(c.hp_current/c.hp_max)*100)):100;
+    const hpColor=hpPct>60?'var(--green)':hpPct>30?'var(--amber)':'var(--red)';
+    const typeLabel=c.type==='player'?'Jugador':c.type==='npc'?'NPC Aliado':'Enemigo';
+
+    const row=document.createElement('div');
+    row.className=`combatant-row type-${c.type}${isActive?' active-turn':''}${isDead?' dead':''}`;
+
+    // Conditions HTML
+    const condsHtml=(c.conditions||[]).map(cond=>`<span class="condition-tag ${COND_CLASSES[cond]||''}" ${user?.isGM?`onclick="toggleCondition(${c.id},'${cond}')" title="Clic para quitar"`:''}>${cond}</span>`).join('');
+
+    // Add condition button (GM only)
+    const addCondHtml=user?.isGM?`<div style="position:relative;display:inline-block;">
+      <span class="cond-add" onclick="showCondMenu(${c.id},this)">+ cond.</span>
+    </div>`:'';
+
+    // HP inputs (GM editable, player read-only)
+    const hpHtml=user?.isGM
+      ?`<div class="hp-inputs">
+          <input class="hp-num current" type="number" value="${c.hp_current}" style="color:${hpColor}" onchange="updateHPCur(${c.id},this.value)" onclick="this.select()">
+          <span class="hp-sep">/</span>
+          <input class="hp-num" type="number" value="${c.hp_max||0}" onchange="updateHPMax(${c.id},this.value)" onclick="this.select()">
+        </div>`
+      :`<div class="hp-inputs" style="justify-content:center;">
+          <span style="font-family:'Orbitron',monospace;font-size:0.85rem;font-weight:700;color:${hpColor}">${c.hp_current}</span>
+          <span class="hp-sep">/</span>
+          <span style="font-family:'Orbitron',monospace;font-size:0.85rem;color:var(--text-dim)">${c.hp_max||0}</span>
+        </div>`;
+
+    // Actions (GM only)
+    const actionsHtml=user?.isGM?`
+      <div class="combatant-actions">
+        <button class="btn btn-xs" style="color:var(--green);border-color:rgba(57,255,20,0.3);" onclick="showDeltaMenu(${c.id},'heal')">+ curar</button>
+        <button class="btn btn-xs btn-danger" onclick="showDeltaMenu(${c.id},'damage')">− daño</button>
+        <button class="btn btn-xs" style="color:var(--text-dim);border-color:rgba(255,255,255,0.1);" onclick="moveCombatant(${c.id},-1)" title="Subir">▲</button>
+        <button class="btn btn-xs" style="color:var(--text-dim);border-color:rgba(255,255,255,0.1);" onclick="moveCombatant(${c.id},1)" title="Bajar">▼</button>
+        <button class="btn btn-xs btn-danger" onclick="removeCombatant(${c.id})" title="Eliminar">✕</button>
+      </div>`
+    :`<div></div>`;
+
+    // Initiative (GM editable)
+    const initHtml=user?.isGM
+      ?`<input class="init-input" type="number" value="${c.initiative}" onchange="updateInit(${c.id},this.value)" onclick="this.select()">`
+      :`<span style="font-family:'Orbitron',monospace;font-size:1.2rem;font-weight:900;">${c.initiative}</span>`;
+
+    row.innerHTML=`
+      <div class="turn-indicator"><span class="turn-arrow">▶</span></div>
+      <div class="combatant-name-block">
+        <div class="combatant-name">${E(c.name)}</div>
+        <div class="combatant-type-badge">${typeLabel}</div>
+      </div>
+      <div class="init-block">
+        <div class="init-label">INIT</div>
+        ${initHtml}
+      </div>
+      <div class="hp-block">
+        <div class="hp-label">HP</div>
+        <div class="hp-bar-wrap"><div class="hp-bar-fill" style="width:${hpPct}%;background:${hpColor}"></div></div>
+        ${hpHtml}
+      </div>
+      <div class="conditions-block">
+        ${condsHtml}
+        ${addCondHtml}
+      </div>
+      ${actionsHtml}
+    `;
+    list.appendChild(row);
+
+    // Scroll active into view
+    if(isActive)setTimeout(()=>row.scrollIntoView({behavior:'smooth',block:'nearest'}),100);
+  });
+}
+
+// ── DELTA MENU (damage/heal popup) ────────────────────
+function showDeltaMenu(id,mode){
+  // Remove any existing
+  document.querySelectorAll('.delta-popup').forEach(e=>e.remove());
+  const popup=document.createElement('div');
+  popup.className='delta-popup';
+  popup.style.cssText=`position:fixed;top:50%;left:50%;transform:translate(-50%,-50%);background:var(--panel2);border:1px solid ${mode==='heal'?'var(--green)':'var(--red)'};padding:1.2rem;z-index:9000;min-width:240px;`;
+  const c=state.combatants.find(x=>x.id===id);
+  popup.innerHTML=`
+    <div style="font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:2px;color:${mode==='heal'?'var(--green)':'var(--red)'};text-transform:uppercase;margin-bottom:0.8rem;">${mode==='heal'?'+ CURAR':'− DAÑO'} — ${E(c?.name||'')}</div>
+    <div style="display:flex;gap:0.5rem;align-items:center;margin-bottom:0.8rem;">
+      <input id="deltaVal" type="number" min="1" placeholder="0" style="background:var(--panel);border:1px solid var(--border);color:var(--text);font-family:'Orbitron',monospace;font-size:1.4rem;font-weight:700;width:80px;text-align:center;padding:0.4rem;outline:none;" autofocus onkeydown="if(event.key==='Enter')applyDelta(${id},'${mode}')">
+      <div style="display:flex;gap:0.3rem;flex-wrap:wrap;">
+        ${[1,2,3,5,10,15,20].map(v=>`<button onclick="document.getElementById('deltaVal').value=${v}" style="background:var(--panel);border:1px solid var(--border);color:var(--text-dim);font-family:'Share Tech Mono',monospace;font-size:10px;padding:0.2rem 0.5rem;cursor:pointer;">${v}</button>`).join('')}
+      </div>
+    </div>
+    <div style="display:flex;gap:0.5rem;">
+      <button class="btn btn-sm ${mode==='heal'?'btn-secondary':'btn-danger'}" onclick="applyDelta(${id},'${mode}')" style="flex:1;justify-content:center;">${mode==='heal'?'Curar':'Aplicar daño'}</button>
+      <button class="btn btn-sm" style="color:var(--text-dim);border-color:rgba(255,255,255,0.1);" onclick="this.closest('.delta-popup').remove()">Cancelar</button>
+    </div>
+  `;
+  document.body.appendChild(popup);
+  setTimeout(()=>document.getElementById('deltaVal')?.focus(),50);
+  // Close on outside click
+  setTimeout(()=>{document.addEventListener('click',function h(e){if(!popup.contains(e.target)){popup.remove();document.removeEventListener('click',h);}});},100);
+}
+
+function applyDelta(id,mode){
+  const val=parseInt(document.getElementById('deltaVal')?.value)||0;
+  if(val<=0){toast('Ingresa un valor mayor a 0',true);return;}
+  document.querySelectorAll('.delta-popup').forEach(e=>e.remove());
+  if(mode==='heal')applyHeal(id,val);
+  else applyDamage(id,val);
+}
+
+// ── CONDITIONS MENU ────────────────────────────────────
+function showCondMenu(id,el){
+  document.querySelectorAll('.cond-popup').forEach(e=>e.remove());
+  const c=state.combatants.find(x=>x.id===id);
+  const popup=document.createElement('div');
+  popup.className='cond-popup';
+  popup.style.cssText='position:absolute;top:100%;left:0;background:var(--panel2);border:1px solid var(--border-bright);padding:0.5rem;z-index:9000;min-width:140px;';
+  popup.innerHTML=CONDITIONS.map(cond=>`
+    <div onclick="toggleCondition(${id},'${cond}');document.querySelectorAll('.cond-popup').forEach(e=>e.remove())" style="padding:0.3rem 0.5rem;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;cursor:pointer;color:${c?.conditions?.includes(cond)?'var(--cyan)':'var(--text-dim)'};background:${c?.conditions?.includes(cond)?'rgba(0,245,255,0.05)':'transparent'};transition:background 0.15s;white-space:nowrap;">
+      ${c?.conditions?.includes(cond)?'✓ ':''} ${cond}
+    </div>`).join('');
+  el.parentElement.style.position='relative';
+  el.parentElement.appendChild(popup);
+  setTimeout(()=>{document.addEventListener('click',function h(e){if(!popup.contains(e.target)){popup.remove();document.removeEventListener('click',h);}});},100);
+}
+
+// ── UTILS ─────────────────────────────────────────────
+function E(s){if(!s)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
+function toast(msg,isErr=false){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show'+(isErr?' err':'');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),2500);}
+</script>
+</body>
+</html>
