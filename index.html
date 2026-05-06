@@ -843,12 +843,7 @@ function renderGMPanel(){
         <div>₩<br><span style="color:var(--amber);font-size:13px;font-family:'Orbitron',monospace">${ch.credits||0}</span></div>
         <div>HP TMP<br><span style="color:var(--amber);font-size:13px;font-family:'Orbitron',monospace">${ch.temp_hp||0}</span></div>
       </div>
-      <div class="gm-quick">
-        <span style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);">Ajuste HP:</span>
-        <input class="gm-delta" type="number" placeholder="±5" id="d-${i}">
-        <button class="btn btn-xs btn-secondary" onclick="applyHP(${i},1)">+ curar</button>
-        <button class="btn btn-xs btn-danger" onclick="applyHP(${i},-1)">− daño</button>
-      </div>`;
+      `;
     g.appendChild(card);
   }
   const gs=document.getElementById('gmSessList');if(!gs)return;
