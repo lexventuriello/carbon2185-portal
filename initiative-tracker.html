@@ -603,17 +603,22 @@ function render(){
       <span class="cond-add" onclick="showCondMenu(${c.id},this)">+ cond.</span>
     </div>`:'';
 
-    // HP inputs (GM editable, player read-only)
+    // HP: GM = números + barra / Jugadores = solo emoji de estado
+    const hpDisplay=
+      hpPct<=10  ? `<span style="font-size:1.9rem" title="Estado crítico">😵</span>` :
+      hpPct<=40  ? `<span style="font-size:1.5rem" title="Gravemente herido">🤕</span><span style="font-size:1.4rem;margin-left:-5px" title="Gravemente herido">😛</span>` :
+      hpPct<=75  ? `<span style="font-size:1.9rem" title="Dañado">🤕</span>` :
+                   `<span style="font-size:1.9rem" title="Bien">😊</span>`;
+    const hpBoxBg  = hpPct<=40 ? 'rgba(255,34,68,0.18)' : 'transparent';
+    const hpBoxBorder = hpPct<=40 ? '1px solid rgba(255,34,68,0.45)' : '1px solid transparent';
     const hpHtml=user?.isGM
       ?`<div class="hp-inputs">
           <input class="hp-num current" type="number" value="${c.hp_current}" style="color:${hpColor}" onchange="updateHPCur(${c.id},this.value)" onclick="this.select()">
           <span class="hp-sep">/</span>
           <input class="hp-num" type="number" value="${c.hp_max||0}" onchange="updateHPMax(${c.id},this.value)" onclick="this.select()">
         </div>`
-      :`<div class="hp-inputs" style="justify-content:center;">
-          <span style="font-family:'Orbitron',monospace;font-size:0.85rem;font-weight:700;color:${hpColor}">${c.hp_current}</span>
-          <span class="hp-sep">/</span>
-          <span style="font-family:'Orbitron',monospace;font-size:0.85rem;color:var(--text-dim)">${c.hp_max||0}</span>
+      :`<div style="display:flex;align-items:center;justify-content:center;background:${hpBoxBg};border:${hpBoxBorder};padding:0.2rem 0.5rem;min-width:60px;">
+          ${hpDisplay}
         </div>`;
 
     // Actions (GM only)
