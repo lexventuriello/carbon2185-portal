@@ -111,9 +111,6 @@ body::after{content:'';position:fixed;inset:0;background-image:linear-gradient(r
   border-left:4px solid var(--border);
   transition:all 0.25s;position:relative;
 }
-.combatant-row.player-view{
-  grid-template-columns:44px 1fr 90px auto;
-}
 .combatant-row.type-player{border-left-color:var(--cyan);}
 .combatant-row.type-npc{border-left-color:var(--amber);}
 .combatant-row.type-enemy{border-left-color:var(--red);}
@@ -345,8 +342,15 @@ let user=null, state={combatants:[],round:1,active_idx:0,is_active:false}, rowId
 
 // ── LOGIN ──────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded',async()=>{
+  // 1. Check sessionStorage (normal reload)
   const saved=sessionStorage.getItem('c2185_init_user');
-  if(saved){try{user=JSON.parse(saved);await init();}catch(e){sessionStorage.removeItem('c2185_init_user');}}
+  if(saved){try{user=JSON.parse(saved);await init();return;}catch(e){sessionStorage.removeItem('c2185_init_user');}}
+  // 2. Check URL param ?code= (opened from portal via openTracker())
+  const urlCode=new URLSearchParams(window.location.search).get('code');
+  if(urlCode){
+    document.getElementById('loginCode').value=urlCode;
+    await doLogin();
+  }
 });
 
 async function doLogin(){
@@ -589,28 +593,30 @@ function render(){
     const typeLabel=c.type==='player'?'Jugador':c.type==='npc'?'NPC Aliado':'Enemigo';
 
     const row=document.createElement('div');
-    row.className=`combatant-row type-${c.type}${isActive?' active-turn':''}${isDead?' dead':''}${!user?.isGM?' player-view':''}`;
+    row.className=`combatant-row type-${c.type}${isActive?' active-turn':''}${isDead?' dead':''}`;
 
-    // Conditions HTML (GM only)
-    const condsHtml=user?.isGM
-      ?(c.conditions||[]).map(cond=>`<span class="condition-tag ${COND_CLASSES[cond]||''}" onclick="toggleCondition(${c.id},'${cond}')" title="Clic para quitar">${cond}</span>`).join('')
-      :'';
+    // Conditions HTML
+    const condsHtml=(c.conditions||[]).map(cond=>`<span class="condition-tag ${COND_CLASSES[cond]||''}" ${user?.isGM?`onclick="toggleCondition(${c.id},'${cond}')" title="Clic para quitar"`:''}>${cond}</span>`).join('');
 
     // Add condition button (GM only)
     const addCondHtml=user?.isGM?`<div style="position:relative;display:inline-block;">
       <span class="cond-add" onclick="showCondMenu(${c.id},this)">+ cond.</span>
     </div>`:'';
 
-    // HP block (GM only)
+    // HP inputs (GM editable, player read-only)
     const hpHtml=user?.isGM
       ?`<div class="hp-inputs">
           <input class="hp-num current" type="number" value="${c.hp_current}" style="color:${hpColor}" onchange="updateHPCur(${c.id},this.value)" onclick="this.select()">
           <span class="hp-sep">/</span>
           <input class="hp-num" type="number" value="${c.hp_max||0}" onchange="updateHPMax(${c.id},this.value)" onclick="this.select()">
         </div>`
-      :'';
+      :`<div class="hp-inputs" style="justify-content:center;">
+          <span style="font-family:'Orbitron',monospace;font-size:0.85rem;font-weight:700;color:${hpColor}">${c.hp_current}</span>
+          <span class="hp-sep">/</span>
+          <span style="font-family:'Orbitron',monospace;font-size:0.85rem;color:var(--text-dim)">${c.hp_max||0}</span>
+        </div>`;
 
-    // Actions: GM sees arrows + remove, players see nothing
+    // Actions (GM only)
     const actionsHtml=user?.isGM?`
       <div class="combatant-actions">
         <button class="btn btn-xs" style="color:var(--green);border-color:rgba(57,255,20,0.3);" onclick="showDeltaMenu(${c.id},'heal')">+ curar</button>
@@ -619,7 +625,7 @@ function render(){
         <button class="btn btn-xs" style="color:var(--text-dim);border-color:rgba(255,255,255,0.1);" onclick="moveCombatant(${c.id},1)" title="Bajar">▼</button>
         <button class="btn btn-xs btn-danger" onclick="removeCombatant(${c.id})" title="Eliminar">✕</button>
       </div>`
-    :'';
+    :`<div></div>`;
 
     // Initiative (GM editable)
     const initHtml=user?.isGM
@@ -636,7 +642,6 @@ function render(){
         <div class="init-label">INIT</div>
         ${initHtml}
       </div>
-      ${user?.isGM?`
       <div class="hp-block">
         <div class="hp-label">HP</div>
         <div class="hp-bar-wrap"><div class="hp-bar-fill" style="width:${hpPct}%;background:${hpColor}"></div></div>
@@ -645,7 +650,7 @@ function render(){
       <div class="conditions-block">
         ${condsHtml}
         ${addCondHtml}
-      </div>`:''}
+      </div>
       ${actionsHtml}
     `;
     list.appendChild(row);
