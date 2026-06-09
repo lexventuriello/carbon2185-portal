@@ -1,0 +1,494 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Carbon 2185 — Initiative Tracker</title>
+  <style>* { margin: 0; padding: 0; box-sizing: border-box; } body { background: #080b0f; } #root { min-height: 100vh; }</style>
+</head>
+<body>
+  <div id="root"></div>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <script type="text/babel">
+    const { useState, useMemo, useEffect } = React;
+
+    const LS_KEY   = "carbon2185_state";
+    const IS_PLAYER = new URLSearchParams(window.location.search).get("view") === "player";
+
+    const PRESET_CONDITIONS = [
+      { name: "Aturdido",     color: "#FFD700" },
+      { name: "Quemado",      color: "#FF4500" },
+      { name: "Hackeado",     color: "#00FF41" },
+      { name: "Paralizado",   color: "#9400D3" },
+      { name: "Sangrando",    color: "#DC143C" },
+      { name: "Sobrecargado", color: "#00BFFF" },
+      { name: "Cegado",       color: "#888888" },
+      { name: "Marcado",      color: "#FF00FF" },
+      { name: "EMP",          color: "#FF8C00" },
+      { name: "Infectado",    color: "#7FFF00" },
+    ];
+
+    const NEON = {
+      green:"#00FF41", cyan:"#00BFFF", magenta:"#FF00FF",
+      gold:"#FFD700",  red:"#FF4136",  orange:"#FF8C00",
+      bg:"#080b0f",    bgCard:"#0d1117", bgInput:"#111820",
+      text:"#b0c4b0",  dim:"#4a5a4a",
+    };
+
+    const uid = () => Math.random().toString(36).substr(2, 9);
+
+    const makeCharacter = (name, type, initiative, hp = 10) => ({
+      id: uid(), name: name.trim(), type,
+      initiative: Number(initiative) || 0,
+      ...(type === "NPC" ? { hp: Number(hp) || 10, maxHp: Number(hp) || 10 } : {}),
+      conditions: [],
+    });
+
+    const makeCondition = (name, color, duration, reducesAt) => ({
+      id: uid(), name, color,
+      duration: duration === 0 ? null : Number(duration),
+      reducesAt,
+    });
+
+    const loadState = () => {
+      try { return JSON.parse(localStorage.getItem(LS_KEY)) || null; }
+      catch { return null; }
+    };
+    const saveState = (s) => localStorage.setItem(LS_KEY, JSON.stringify(s));
+
+    const hpEmoji = (char) => {
+      if (char.type !== "NPC" || !char.maxHp) return null;
+      const pct = (char.hp / char.maxHp) * 100;
+      if (pct < 5)  return { icon: "\u{1F635}", title: "Al borde de la muerte" };
+      if (pct < 25) return { icon: "\u{1F912}", title: "Estado crítico" };
+      if (pct < 50) return { icon: "\u{1F61F}", title: "Herido" };
+      if (pct < 75) return { icon: "\u{1F610}", title: "Golpeado" };
+      return           { icon: "\u{1F60A}", title: "Sin daño significativo" };
+    };
+
+    const S = {
+      btn:  (c=NEON.green) => ({ background:"transparent", border:`1px solid ${c}`, color:c, fontFamily:"inherit", fontSize:12, letterSpacing:1, padding:"5px 12px", borderRadius:3, cursor:"pointer", transition:"all 0.15s" }),
+      btnSm:(c=NEON.green) => ({ background:"transparent", border:`1px solid ${c}55`, color:c, fontFamily:"inherit", fontSize:11, padding:"2px 7px", borderRadius:3, cursor:"pointer", lineHeight:"16px" }),
+      input: { background:NEON.bgInput, border:`1px solid ${NEON.green}33`, borderRadius:3, color:NEON.green, fontFamily:"inherit", fontSize:13, padding:"5px 8px", outline:"none", width:"100%", boxSizing:"border-box" },
+      select:{ background:NEON.bgInput, border:`1px solid ${NEON.green}33`, borderRadius:3, color:NEON.green, fontFamily:"inherit", fontSize:13, padding:"5px 8px", outline:"none", cursor:"pointer" },
+      tag:  (c) => ({ display:"inline-flex", alignItems:"center", gap:4, background:`${c}18`, border:`1px solid ${c}66`, borderRadius:3, color:c, fontSize:10, letterSpacing:1, padding:"1px 6px", marginRight:4, marginBottom:3, whiteSpace:"nowrap" }),
+      card: { background:NEON.bgCard, border:`1px solid ${NEON.green}33`, borderRadius:6, padding:16, marginBottom:16 },
+      sec:  { color:NEON.cyan, fontSize:11, letterSpacing:3, textTransform:"uppercase", marginBottom:12, borderBottom:`1px solid ${NEON.cyan}22`, paddingBottom:6 },
+    };
+
+    function PlayerView() {
+      const [state, setState] = useState(() => loadState() || { characters:[], activeCharId:null, round:1 });
+
+      useEffect(() => {
+        const onStorage = (e) => { if (e.key === LS_KEY) { const n = loadState(); if (n) setState(n); } };
+        window.addEventListener("storage", onStorage);
+        const poll = setInterval(() => { const n = loadState(); if (n) setState(n); }, 800);
+        return () => { window.removeEventListener("storage", onStorage); clearInterval(poll); };
+      }, []);
+
+      const { characters, activeCharId, round } = state;
+      const sorted     = [...characters].sort((a, b) => b.initiative - a.initiative);
+      const activeChar = sorted.find((c) => c.id === activeCharId) ?? null;
+
+      return (
+        <div style={{ minHeight:"100vh", background:NEON.bg, color:NEON.text, fontFamily:"'Courier New','Lucida Console',monospace", display:"flex", flexDirection:"column" }}>
+          <div style={{ background:"#050709", borderBottom:`1px solid ${NEON.green}33`, padding:"16px 32px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+            <div style={{ color:NEON.green, fontSize:18, fontWeight:"bold", letterSpacing:4, textShadow:`0 0 12px ${NEON.green}` }}>{'◈'} CARBON 2185</div>
+            <div style={{ display:"flex", alignItems:"center", gap:16 }}>
+              <span style={{ color:NEON.dim, fontSize:11, letterSpacing:2 }}>RONDA <span style={{ color:NEON.green }}>{String(round).padStart(3,"0")}</span></span>
+              <span style={{ background:`${NEON.green}11`, border:`1px solid ${NEON.green}44`, borderRadius:3, padding:"3px 10px", color:NEON.dim, fontSize:10, letterSpacing:2 }}>VISTA JUGADORES</span>
+            </div>
+          </div>
+          {activeChar && (
+            <div style={{ background:`${NEON.green}08`, borderBottom:`1px solid ${NEON.green}33`, padding:"12px 32px", display:"flex", alignItems:"center", gap:12 }}>
+              <span style={{ color:NEON.dim, fontSize:11, letterSpacing:2 }}>TURNO DE</span>
+              <span style={{ color:NEON.green, fontSize:20, fontWeight:"bold", letterSpacing:3, textShadow:`0 0 16px ${NEON.green}` }}>{activeChar.name}</span>
+              <span style={{ fontSize:9, letterSpacing:1, color:activeChar.type==="PC"?NEON.cyan:NEON.magenta, border:`1px solid ${activeChar.type==="PC"?NEON.cyan:NEON.magenta}44`, borderRadius:2, padding:"2px 6px" }}>
+                {activeChar.type==="PC"?"JUGADOR":"ENEMIGO"}
+              </span>
+            </div>
+          )}
+          <div style={{ flex:1, padding:"24px 32px", maxWidth:700, margin:"0 auto", width:"100%" }}>
+            {sorted.length === 0 ? (
+              <div style={{ color:NEON.dim, textAlign:"center", paddingTop:80, fontSize:13, letterSpacing:3 }}>[ ESPERANDO COMBATE ]</div>
+            ) : sorted.map((char, i) => {
+              const isActive = char.id === activeCharId;
+              const emoji    = hpEmoji(char);
+              return (
+                <div key={char.id} style={{ background:isActive?`${NEON.green}0d`:"#0a0f0a", border:`1px solid ${isActive?NEON.green:NEON.green+"1a"}`, borderRadius:6, padding:"14px 20px", marginBottom:10, position:"relative", transition:"all 0.3s", boxShadow:isActive?`0 0 20px ${NEON.green}18, inset 0 0 20px ${NEON.green}05`:"none" }}>
+                  {isActive && <div style={{ position:"absolute", left:0, top:0, bottom:0, width:4, background:NEON.green, borderRadius:"6px 0 0 6px", boxShadow:`0 0 10px ${NEON.green}` }} />}
+                  <div style={{ display:"flex", alignItems:"center", gap:16 }}>
+                    <span style={{ color:NEON.dim, fontSize:13, minWidth:24, textAlign:"right" }}>#{i+1}</span>
+                    <span style={{ color:isActive?NEON.gold:`${NEON.gold}99`, fontSize:28, fontWeight:"bold", minWidth:52, textAlign:"center", textShadow:isActive?`0 0 10px ${NEON.gold}88`:"none", transition:"all 0.3s" }}>{char.initiative}</span>
+                    <div style={{ flex:1 }}>
+                      <div style={{ display:"flex", alignItems:"center", gap:8, marginBottom:char.conditions.length?6:0 }}>
+                        <span style={{ color:isActive?NEON.green:NEON.text, fontSize:18, fontWeight:isActive?"bold":"normal", letterSpacing:1, transition:"all 0.3s", textShadow:isActive?`0 0 8px ${NEON.green}66`:"none" }}>{char.name}</span>
+                        <span style={{ fontSize:9, letterSpacing:1, color:char.type==="PC"?NEON.cyan:NEON.magenta, border:`1px solid ${char.type==="PC"?NEON.cyan:NEON.magenta}44`, borderRadius:2, padding:"1px 5px", opacity:0.8 }}>{char.type==="PC"?"PJ":"PNJ"}</span>
+                      </div>
+                      {char.conditions.length > 0 && (
+                        <div style={{ display:"flex", flexWrap:"wrap" }}>
+                          {char.conditions.map((cond) => (
+                            <span key={cond.id} style={S.tag(cond.color)}>
+                              {cond.name}{cond.duration!==null && <span style={{ opacity:0.6 }}> {cond.duration}t</span>}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                    {emoji && <span title={emoji.title} style={{ fontSize:28, lineHeight:1, filter:isActive?"drop-shadow(0 0 6px rgba(255,255,255,0.3))":"none" }}>{emoji.icon}</span>}
+                    {isActive && <div style={{ color:NEON.green, fontSize:18, textShadow:`0 0 8px ${NEON.green}` }}>{'▶'}</div>}
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+          <div style={{ borderTop:`1px solid ${NEON.green}11`, padding:"10px 32px", color:NEON.dim, fontSize:10, letterSpacing:2, textAlign:"center" }}>
+            CARBON 2185 // INITIATIVE TRACKER // SYNC AUTOMÁTICO
+          </div>
+        </div>
+      );
+    }
+
+    function CharRow({ char, isActive, rank, updateChar, updateHpDelta, updateHpDirect, removeCharacter, removeCondition, setCondModal }) {
+      const [editInit, setEditInit] = useState(false);
+      const [initVal,  setInitVal]  = useState(String(char.initiative));
+      const [editHp,   setEditHp]   = useState(false);
+      const [hpVal,    setHpVal]    = useState(String(char.hp ?? 0));
+
+      const hpPct  = char.maxHp ? (char.hp / char.maxHp) * 100 : 100;
+      const hpColor= hpPct > 50 ? NEON.green : hpPct > 25 ? NEON.gold : NEON.red;
+
+      const commitHp = () => {
+        const v = parseInt(hpVal, 10);
+        if (!isNaN(v)) updateHpDirect(char.id, Math.max(0, Math.min(char.maxHp, v)));
+        setEditHp(false);
+      };
+
+      return (
+        <div style={{ background:isActive?`${NEON.green}0a`:"#0a0f0a", border:`1px solid ${isActive?NEON.green:NEON.green+"22"}`, borderRadius:5, padding:"10px 14px", marginBottom:8, position:"relative", transition:"all 0.2s", boxShadow:isActive?`0 0 12px ${NEON.green}22`:"none" }}>
+          {isActive && <div style={{ position:"absolute", left:0, top:0, bottom:0, width:3, background:NEON.green, borderRadius:"5px 0 0 5px", boxShadow:`0 0 8px ${NEON.green}` }} />}
+          <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+            <span style={{ color:NEON.dim, fontSize:11, minWidth:18 }}>#{rank+1}</span>
+            {editInit ? (
+              <input autoFocus style={{ ...S.input, width:46, textAlign:"center", fontSize:16, color:NEON.gold }}
+                value={initVal}
+                onChange={(e) => setInitVal(e.target.value)}
+                onBlur={() => { updateChar(char.id,{initiative:Number(initVal)||0}); setEditInit(false); }}
+                onKeyDown={(e) => { if(e.key==="Enter"){ updateChar(char.id,{initiative:Number(initVal)||0}); setEditInit(false); } if(e.key==="Escape") setEditInit(false); }}
+              />
+            ) : (
+              <span onClick={() => { setEditInit(true); setInitVal(String(char.initiative)); }} title="Clic para editar iniciativa"
+                style={{ color:NEON.gold, fontSize:18, fontWeight:"bold", minWidth:46, textAlign:"center", cursor:"pointer", textShadow:`0 0 6px ${NEON.gold}66` }}>
+                {char.initiative}
+              </span>
+            )}
+            <div style={{ flex:1 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                <span style={{ color:isActive?NEON.green:NEON.text, fontWeight:isActive?"bold":"normal", fontSize:14 }}>{char.name}</span>
+                <span style={{ fontSize:9, letterSpacing:1, color:char.type==="PC"?NEON.cyan:NEON.magenta, border:`1px solid ${char.type==="PC"?NEON.cyan:NEON.magenta}44`, borderRadius:2, padding:"0 4px" }}>{char.type}</span>
+              </div>
+              {char.conditions.length > 0 && (
+                <div style={{ marginTop:4, display:"flex", flexWrap:"wrap" }}>
+                  {char.conditions.map((cond) => (
+                    <span key={cond.id} style={S.tag(cond.color)}>
+                      {cond.name}{cond.duration!==null && <span style={{ opacity:0.7 }}> {cond.duration}</span>}
+                      <span onClick={() => removeCondition(char.id,cond.id)} style={{ cursor:"pointer", opacity:0.6, marginLeft:2 }}>{'×'}</span>
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+            {char.type === "NPC" && (
+              <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4, minWidth:100 }}>
+                <div style={{ display:"flex", alignItems:"center", gap:4 }}>
+                  <button style={S.btnSm(NEON.red)}   onClick={() => { updateHpDelta(char.id,-1); setHpVal(String(Math.max(0,(char.hp??0)-1))); }}>{'−'}</button>
+                  {editHp ? (
+                    <input autoFocus
+                      style={{ ...S.input, width:52, textAlign:"center", fontSize:13, color:hpColor, padding:"2px 4px" }}
+                      value={hpVal}
+                      onChange={(e) => setHpVal(e.target.value)}
+                      onBlur={commitHp}
+                      onKeyDown={(e) => { if(e.key==="Enter") commitHp(); if(e.key==="Escape") setEditHp(false); }}
+                    />
+                  ) : (
+                    <span
+                      onClick={() => { setEditHp(true); setHpVal(String(char.hp ?? 0)); }}
+                      title="Clic para editar HP directamente"
+                      style={{ color:hpColor, fontSize:13, minWidth:52, textAlign:"center", fontWeight:"bold", cursor:"pointer", borderBottom:`1px dashed ${hpColor}44` }}
+                    >
+                      {char.hp}/{char.maxHp}
+                    </span>
+                  )}
+                  <button style={S.btnSm(NEON.green)} onClick={() => { updateHpDelta(char.id,+1); setHpVal(String(Math.min(char.maxHp,(char.hp??0)+1))); }}>+</button>
+                </div>
+                <div style={{ width:100, height:4, background:"#1a1a1a", borderRadius:2, overflow:"hidden" }}>
+                  <div style={{ width:`${hpPct}%`, height:"100%", background:hpColor, transition:"all 0.3s", boxShadow:`0 0 4px ${hpColor}` }} />
+                </div>
+              </div>
+            )}
+            <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
+              <button style={S.btnSm(NEON.cyan)} onClick={() => setCondModal(char.id)}>{'⚡'} COND</button>
+              <button style={S.btnSm(NEON.red)}  onClick={() => removeCharacter(char.id)}>{'✕'}</button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function ConditionModal({ condModal, setCondModal, characters, condOpts, setCondOpts, customCond, setCustomCond, addCondition, removeCondition }) {
+      const char = characters.find((c) => c.id === condModal);
+      if (!char) return null;
+      return (
+        <div style={{ position:"fixed", inset:0, background:"#000000cc", display:"flex", alignItems:"center", justifyContent:"center", zIndex:200 }}
+          onClick={(e) => e.target===e.currentTarget && setCondModal(null)}>
+          <div style={{ background:"#0d1520", border:`1px solid ${NEON.cyan}55`, borderRadius:8, padding:24, width:380, maxWidth:"95vw", boxShadow:`0 0 40px ${NEON.cyan}22` }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
+              <h3 style={{ color:NEON.cyan, margin:0, fontSize:13, letterSpacing:2 }}>{'⚡'} CONDICIONES &mdash; {char.name}</h3>
+              <button style={S.btnSm(NEON.dim)} onClick={() => setCondModal(null)}>{'✕'}</button>
+            </div>
+            <div style={{ display:"flex", gap:10, marginBottom:12 }}>
+              <div style={{ flex:1 }}>
+                <div style={{ color:NEON.dim, fontSize:10, letterSpacing:1, marginBottom:4 }}>DURACIÓN (0 = {'∞'})</div>
+                <input style={{ ...S.input, width:"100%" }} type="number" min="0" value={condOpts.duration}
+                  onChange={(e) => setCondOpts((o) => ({...o,duration:e.target.value}))} />
+              </div>
+              <div style={{ flex:1 }}>
+                <div style={{ color:NEON.dim, fontSize:10, letterSpacing:1, marginBottom:4 }}>REDUCE AL...</div>
+                <select style={{ ...S.select, width:"100%" }} value={condOpts.reducesAt}
+                  onChange={(e) => setCondOpts((o) => ({...o,reducesAt:e.target.value}))}>
+                  <option value="start">Inicio de turno</option>
+                  <option value="end">Final de turno</option>
+                </select>
+              </div>
+            </div>
+            <div style={{ color:NEON.dim, fontSize:10, letterSpacing:1, marginBottom:6 }}>CONDICIONES PRESET</div>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:14 }}>
+              {PRESET_CONDITIONS.map((def) => {
+                const active = char.conditions.find((c) => c.name===def.name);
+                return (
+                  <button key={def.name}
+                    style={{ ...S.btn(def.color), fontSize:11, padding:"3px 8px", background:active?`${def.color}22`:"transparent" }}
+                    onClick={() => active?removeCondition(char.id,active.id):addCondition(char.id,def)}>
+                    {active?"✓ ":""}{def.name}
+                  </button>
+                );
+              })}
+            </div>
+            <div style={{ color:NEON.dim, fontSize:10, letterSpacing:1, marginBottom:6 }}>CONDICIÓN PERSONALIZADA</div>
+            <div style={{ display:"flex", gap:8 }}>
+              <input style={{ ...S.input, flex:1 }} placeholder="Nombre condición..." value={customCond.name}
+                onChange={(e) => setCustomCond((c) => ({...c,name:e.target.value}))} />
+              <input type="color" value={customCond.color}
+                onChange={(e) => setCustomCond((c) => ({...c,color:e.target.value}))}
+                style={{ width:34, height:34, border:"none", borderRadius:3, background:"none", cursor:"pointer", padding:0 }} />
+              <button style={S.btn(NEON.cyan)}
+                onClick={() => { if(!customCond.name.trim()) return; addCondition(char.id,customCond); setCustomCond({name:"",color:"#00FF41"}); }}>
+                + ADD
+              </button>
+            </div>
+          </div>
+        </div>
+      );
+    }
+
+    function GMView() {
+      const [characters,   setCharacters]   = useState([]);
+      const [activeCharId, setActiveCharId] = useState(null);
+      const [round,        setRound]        = useState(1);
+      const [form,         setForm]         = useState({ name:"", type:"PC", initiative:"", hp:"10" });
+      const [condModal,    setCondModal]    = useState(null);
+      const [condOpts,     setCondOpts]     = useState({ duration:"1", reducesAt:"end" });
+      const [customCond,   setCustomCond]   = useState({ name:"", color:"#00FF41" });
+
+      const sorted     = useMemo(() => [...characters].sort((a,b) => b.initiative-a.initiative), [characters]);
+      const activeChar = sorted.find((c) => c.id === activeCharId) ?? null;
+
+      useEffect(() => { saveState({ characters, activeCharId, round }); }, [characters, activeCharId, round]);
+
+      useEffect(() => {
+        if (activeCharId && !characters.find((c) => c.id === activeCharId)) {
+          setActiveCharId(sorted[0]?.id ?? null);
+        }
+      }, [characters]);
+
+      useEffect(() => {
+        if (!activeCharId && sorted.length > 0) setActiveCharId(sorted[0].id);
+      }, [sorted.length]);
+
+      const addCharacter = () => {
+        if (!form.name.trim()) return;
+        const c = makeCharacter(form.name, form.type, form.initiative, form.hp);
+        setCharacters((p) => [...p, c]);
+        setForm((f) => ({...f, name:"", initiative:""}));
+      };
+
+      const removeCharacter = (id) => {
+        setCharacters((p) => p.filter((c) => c.id !== id));
+        if (id === activeCharId) {
+          const idx = sorted.findIndex((c) => c.id === id);
+          const next = sorted[idx+1] ?? sorted[idx-1] ?? null;
+          setActiveCharId(next?.id ?? null);
+        }
+      };
+
+      const updateChar     = (id, patch) => setCharacters((p) => p.map((c) => c.id===id?{...c,...patch}:c));
+      const updateHpDelta  = (id, d)     => setCharacters((p) => p.map((c) => c.id===id?{...c,hp:Math.max(0,(c.hp??0)+d)}:c));
+      const updateHpDirect = (id, val)   => setCharacters((p) => p.map((c) => c.id===id?{...c,hp:val}:c));
+
+      const processConditions = (charId, timing) => {
+        setCharacters((p) => p.map((c) => {
+          if (c.id !== charId) return c;
+          const updated = c.conditions
+            .map((cond) => cond.reducesAt===timing && cond.duration!==null ? {...cond,duration:cond.duration-1} : cond)
+            .filter((cond) => cond.duration===null || cond.duration>0);
+          return {...c, conditions:updated};
+        }));
+      };
+
+      const nextTurn = () => {
+        if (!sorted.length) return;
+        const currentSorted = [...characters].sort((a,b) => b.initiative-a.initiative);
+        const curIdx = currentSorted.findIndex((c) => c.id === activeCharId);
+        if (curIdx !== -1) processConditions(activeCharId, "end");
+        const nextIdx  = (curIdx + 1) % currentSorted.length;
+        const nextChar = currentSorted[nextIdx];
+        if (nextIdx === 0) setRound((r) => r+1);
+        setActiveCharId(nextChar.id);
+        setTimeout(() => processConditions(nextChar.id, "start"), 0);
+      };
+
+      const prevTurn = () => {
+        if (!sorted.length) return;
+        const currentSorted = [...characters].sort((a,b) => b.initiative-a.initiative);
+        const curIdx  = currentSorted.findIndex((c) => c.id === activeCharId);
+        const prevIdx = curIdx <= 0 ? currentSorted.length-1 : curIdx-1;
+        setActiveCharId(currentSorted[prevIdx].id);
+      };
+
+      const resetTracker = () => {
+        setRound(1);
+        const s = [...characters].sort((a,b) => b.initiative-a.initiative);
+        setActiveCharId(s[0]?.id ?? null);
+        setCharacters((p) => p.map((c) => ({...c,conditions:[]})));
+      };
+
+      const addCondition = (charId, def) => {
+        const dur  = condOpts.duration===""||condOpts.duration==="0" ? null : Number(condOpts.duration);
+        const cond = makeCondition(def.name,def.color,dur===null?0:dur,condOpts.reducesAt);
+        setCharacters((p) => p.map((c) => {
+          if (c.id!==charId) return c;
+          if (c.conditions.find((cc) => cc.name===def.name)) return c;
+          return {...c, conditions:[...c.conditions,cond]};
+        }));
+      };
+
+      const removeCondition = (charId, condId) =>
+        setCharacters((p) => p.map((c) => c.id!==charId?c:{...c,conditions:c.conditions.filter((cc) => cc.id!==condId)}));
+
+      const openPlayerView = () => window.open(window.location.href.split("?")[0]+"?view=player","_blank");
+
+      return (
+        <div style={{ minHeight:"100vh", background:NEON.bg, color:NEON.text, fontFamily:"'Courier New','Lucida Console',monospace", fontSize:14, paddingBottom:60 }}>
+          <header style={{ background:"#050709", borderBottom:`1px solid ${NEON.green}33`, padding:"14px 24px", display:"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:100 }}>
+            <h1 style={{ color:NEON.green, fontSize:20, fontWeight:"bold", letterSpacing:4, textShadow:`0 0 12px ${NEON.green}`, margin:0 }}>{'◈'} CARBON 2185 // DJ</h1>
+            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+              {activeChar && <span style={{ color:NEON.green, fontSize:11, letterSpacing:1 }}>{'▶'} {activeChar.name}</span>}
+              <span style={{ background:"#0a1a0a", border:`1px solid ${NEON.green}55`, borderRadius:4, padding:"4px 12px", color:NEON.green, fontSize:12, letterSpacing:2 }}>RONDA {String(round).padStart(3,"0")}</span>
+              <button style={{ ...S.btn(NEON.magenta), fontSize:11, padding:"5px 14px", boxShadow:`0 0 10px ${NEON.magenta}22` }} onClick={openPlayerView}>{'📺'} VISTA JUGADORES</button>
+            </div>
+          </header>
+          <div style={{ maxWidth:900, margin:"0 auto", padding:"20px 16px", display:"grid", gridTemplateColumns:"1fr 320px", gap:20 }}>
+            <div>
+              <div style={{ ...S.card, display:"flex", gap:10, alignItems:"center" }}>
+                <button style={{ ...S.btn(NEON.green), fontSize:14, padding:"8px 24px", flex:1, boxShadow:`0 0 12px ${NEON.green}33` }} onClick={nextTurn} disabled={!sorted.length}>{'▶'} SIGUIENTE TURNO</button>
+                <button style={S.btn(NEON.dim)}    onClick={prevTurn}     disabled={!sorted.length}>{'◄'}</button>
+                <button style={S.btn(NEON.orange)} onClick={resetTracker}>{'↺'} RESET</button>
+              </div>
+              <div style={S.card}>
+                <div style={S.sec}>&mdash; ORDEN DE INICIATIVA &mdash;</div>
+                {sorted.length===0 ? (
+                  <div style={{ color:NEON.dim, textAlign:"center", padding:"20px 0", fontSize:12, letterSpacing:2 }}>[ SIN COMBATIENTES ]</div>
+                ) : sorted.map((char,i) => (
+                  <CharRow key={char.id} char={char} isActive={char.id===activeCharId} rank={i}
+                    updateChar={updateChar}
+                    updateHpDelta={updateHpDelta}
+                    updateHpDirect={updateHpDirect}
+                    removeCharacter={removeCharacter}
+                    removeCondition={removeCondition}
+                    setCondModal={setCondModal} />
+                ))}
+              </div>
+            </div>
+            <div>
+              <div style={S.card}>
+                <div style={S.sec}>&mdash; AÑADIR COMBATIENTE &mdash;</div>
+                <div style={{ marginBottom:8 }}>
+                  <div style={{ color:NEON.dim, fontSize:10, letterSpacing:1, marginBottom:4 }}>NOMBRE</div>
+                  <input style={S.input} placeholder="Nombre del personaje..." value={form.name}
+                    onChange={(e) => setForm((f) => ({...f,name:e.target.value}))}
+                    onKeyDown={(e) => e.key==="Enter" && addCharacter()} />
+                </div>
+                <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
+                  <div>
+                    <div style={{ color:NEON.dim, fontSize:10, letterSpacing:1, marginBottom:4 }}>TIPO</div>
+                    <select style={{ ...S.select, width:"100%" }} value={form.type} onChange={(e) => setForm((f) => ({...f,type:e.target.value}))}>
+                      <option value="PC">PJ (Jugador)</option>
+                      <option value="NPC">PNJ (Enemigo)</option>
+                    </select>
+                  </div>
+                  <div>
+                    <div style={{ color:NEON.dim, fontSize:10, letterSpacing:1, marginBottom:4 }}>INICIATIVA</div>
+                    <input style={S.input} type="number" placeholder="0" value={form.initiative}
+                      onChange={(e) => setForm((f) => ({...f,initiative:e.target.value}))} />
+                  </div>
+                </div>
+                {form.type==="NPC" && (
+                  <div style={{ marginBottom:8 }}>
+                    <div style={{ color:NEON.dim, fontSize:10, letterSpacing:1, marginBottom:4 }}>PUNTOS DE SALUD</div>
+                    <input style={S.input} type="number" placeholder="10" value={form.hp}
+                      onChange={(e) => setForm((f) => ({...f,hp:e.target.value}))} />
+                  </div>
+                )}
+                <button style={{ ...S.btn(NEON.cyan), width:"100%", padding:"8px", fontSize:12, letterSpacing:1 }} onClick={addCharacter}>+ AÑADIR AL COMBATE</button>
+              </div>
+              <div style={{ ...S.card, borderColor:`${NEON.magenta}33` }}>
+                <div style={{ ...S.sec, color:NEON.magenta }}>&mdash; VISTA JUGADORES &mdash;</div>
+                <div style={{ color:NEON.dim, fontSize:11, lineHeight:1.7, marginBottom:12 }}>
+                  Abre la pantalla de jugadores en una nueva pestaña. Arrastrala al proyector o segunda pantalla &mdash; se sincroniza automáticamente.
+                </div>
+                <button style={{ ...S.btn(NEON.magenta), width:"100%", padding:"7px", fontSize:11 }} onClick={openPlayerView}>{'📺'} ABRIR VISTA JUGADORES</button>
+              </div>
+              <div style={S.card}>
+                <div style={S.sec}>&mdash; CONDICIONES ACTIVAS &mdash;</div>
+                {characters.every((c) => c.conditions.length===0) ? (
+                  <div style={{ color:NEON.dim, fontSize:11, letterSpacing:1 }}>[ NINGUNA ]</div>
+                ) : characters.filter((c) => c.conditions.length>0).map((char) => (
+                  <div key={char.id} style={{ marginBottom:8 }}>
+                    <div style={{ color:char.type==="PC"?NEON.cyan:NEON.magenta, fontSize:11, marginBottom:3 }}>{char.name}</div>
+                    <div style={{ display:"flex", flexWrap:"wrap" }}>
+                      {char.conditions.map((cond) => (
+                        <span key={cond.id} style={S.tag(cond.color)}>
+                          {cond.name}{cond.duration!==null && <span style={{ opacity:0.6 }}> ({cond.duration}t)</span>}
+                        </span>
+                      ))}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+          {condModal && <ConditionModal condModal={condModal} setCondModal={setCondModal}
+            characters={characters} condOpts={condOpts} setCondOpts={setCondOpts}
+            customCond={customCond} setCustomCond={setCustomCond}
+            addCondition={addCondition} removeCondition={removeCondition} />}
+        </div>
+      );
+    }
+
+    function App() { return IS_PLAYER ? <PlayerView /> : <GMView />; }
+    ReactDOM.createRoot(document.getElementById("root")).render(<App />);
+  </script>
+</body>
+</html>
