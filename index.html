@@ -285,7 +285,7 @@ footer span{color:var(--cyan-dim);}
       <button class="nav-dropdown-btn">Jugadores</button>
       <div class="nav-dropdown-menu" id="navDropdown"></div>
     </li>
-    <li id="navInitiativa" style="display:none;"><a href="#" onclick="openTracker();return false;">⚔ Iniciativa</a></li>
+    <li id="navInitiativa" style="display:none;"><a href="#" onclick="showView('tracker');return false;">⚔ Iniciativa</a></li>
     <li id="navGMLink" style="display:none;"><a href="#" onclick="showView('gm');return false;">⬡ GM Panel</a></li>
   </ul>
   <div class="nav-right">
@@ -408,12 +408,12 @@ footer span{color:var(--cyan-dim);}
         <div class="resource-icon">🐢</div><div class="resource-name">Dragon Turtle Games</div>
         <div class="resource-desc">Sitio oficial del sistema Carbon 2185.</div><span class="resource-arrow">↗</span>
       </a>
-      <a href="initiative-tracker.html" class="resource-card" style="border-left:3px solid var(--cyan);background:linear-gradient(135deg,var(--panel),rgba(0,245,255,0.04));">
+      <a href="#" onclick="showView('tracker');return false;" class="resource-card" style="border-left:3px solid var(--cyan);background:linear-gradient(135deg,var(--panel),rgba(0,245,255,0.04));">
         <div class="resource-icon">⚔️</div>
         <div class="resource-name" style="color:var(--cyan);">Tracker de Iniciativa</div>
-        <div class="resource-desc">Gestiona el orden de combate en tiempo real. Jugadores, NPCs y enemigos sincronizados.</div>
+        <div class="resource-desc">Gestiona el orden de combate en tiempo real. Jugadores y PNJs sincronizados vía Supabase.</div>
         <span class="resource-arrow">↗</span>
-        <div style="position:absolute;bottom:0.6rem;left:1.5rem;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--green);text-transform:uppercase;">● En tiempo real</div>
+        <div style="position:absolute;bottom:0.6rem;left:1.5rem;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:2px;color:var(--green);text-transform:uppercase;">● Integrado en el portal</div>
       </a>
     </div>
   </section>
@@ -465,6 +465,86 @@ footer span{color:var(--cyan-dim);}
   </div>
 </div>
 
+<!-- TRACKER -->
+<div class="view" id="viewTracker">
+  <div class="page-wide fadein">
+    <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:1rem;margin-bottom:1.5rem;flex-wrap:wrap;">
+      <div>
+        <div class="section-label">Sistema de Combate</div>
+        <h2 class="section-title">Tracker de <span class="hi">Iniciativa</span></h2>
+      </div>
+      <div style="display:flex;align-items:center;gap:0.8rem;flex-wrap:wrap;">
+        <span id="tcRoundBadge" style="font-family:'Share Tech Mono',monospace;font-size:13px;color:var(--cyan);letter-spacing:3px;background:var(--panel2);border:1px solid var(--border);padding:0.4rem 1rem;">RONDA 001</span>
+        <span id="tcActiveLabel" style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--green);text-shadow:var(--glow-green);letter-spacing:2px;"></span>
+      </div>
+    </div>
+    <div id="tcGMControls" style="display:none;margin-bottom:1.2rem;">
+      <div style="display:flex;gap:0.8rem;flex-wrap:wrap;align-items:center;">
+        <button class="btn btn-primary" onclick="tcNextTurn()">&#9654; SIGUIENTE TURNO</button>
+        <button class="btn" style="color:var(--text-dim);border-color:var(--border);" onclick="tcPrevTurn()">&#9664;</button>
+        <button class="btn btn-amber" onclick="tcReset()">&#8634; RESET</button>
+      </div>
+    </div>
+    <div style="display:grid;grid-template-columns:1fr 280px;gap:1.2rem;">
+      <div>
+        <div class="panel">
+          <div class="panel-title">Orden de Iniciativa</div>
+          <div id="tcList"><div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--text-dim);padding:1rem 0;">// Sin combatientes</div></div>
+        </div>
+      </div>
+      <div>
+        <div class="panel" id="tcPlayerPanel" style="display:none;">
+          <div class="panel-title">Tu Iniciativa</div>
+          <div class="form-group">
+            <label class="form-label">Valor</label>
+            <input class="form-input" id="tcMyInit" type="number" placeholder="0" style="font-family:'Orbitron',monospace;font-size:1.5rem;text-align:center;">
+          </div>
+          <button class="btn btn-primary btn-sm" style="width:100%;justify-content:center;" onclick="tcSetMyInit()">&#9672; Confirmar Iniciativa</button>
+        </div>
+        <div class="panel" id="tcGMAddPanel" style="display:none;">
+          <div class="panel-title">Añadir PNJ</div>
+          <div class="form-group">
+            <label class="form-label">Nombre</label>
+            <input class="form-input" id="tcNPCName" placeholder="Nombre...">
+          </div>
+          <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;margin-bottom:0.8rem;">
+            <div class="form-group" style="margin:0;"><label class="form-label">Iniciativa</label><input class="form-input" id="tcNPCInit" type="number" placeholder="0"></div>
+            <div class="form-group" style="margin:0;"><label class="form-label">HP</label><input class="form-input" id="tcNPCHp" type="number" value="10"></div>
+          </div>
+          <button class="btn btn-secondary btn-sm" style="width:100%;justify-content:center;" onclick="tcAddNPC()">+ Añadir PNJ</button>
+        </div>
+        <div class="panel">
+          <div class="panel-title">Condiciones Activas</div>
+          <div id="tcCondSummary" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text-dim);">// Ninguna</div>
+        </div>
+      </div>
+    </div>
+  </div>
+  <div id="tcCondModal" style="display:none;position:fixed;inset:0;background:rgba(0,0,0,0.85);z-index:500;align-items:center;justify-content:center;">
+    <div style="background:var(--panel);border:1px solid var(--border-bright);padding:1.5rem;width:420px;max-width:95vw;">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:1.2rem;">
+        <div class="panel-title" style="margin:0;padding:0;border:none;" id="tcModalTitle">&#9889; CONDICIONES</div>
+        <button onclick="tcCloseCondModal()" style="background:none;border:none;color:var(--text-dim);cursor:pointer;font-size:18px;line-height:1;">&#10005;</button>
+      </div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:0.8rem;margin-bottom:1rem;">
+        <div class="form-group" style="margin:0;"><label class="form-label">Duración (0=&#8734;)</label><input class="form-input" id="tcCondDur" type="number" min="0" value="1"></div>
+        <div class="form-group" style="margin:0;"><label class="form-label">Reduce al...</label>
+          <select class="form-input" id="tcCondWhen"><option value="end">Final de turno</option><option value="start">Inicio de turno</option></select>
+        </div>
+      </div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--text-dim);margin-bottom:0.5rem;">PRESET</div>
+      <div id="tcPresetBtns" style="display:flex;flex-wrap:wrap;gap:0.4rem;margin-bottom:1rem;"></div>
+      <div style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;color:var(--text-dim);margin-bottom:0.5rem;">PERSONALIZADA</div>
+      <div style="display:flex;gap:0.5rem;">
+        <input class="form-input" id="tcCondCustomName" placeholder="Nombre..." style="flex:1;">
+        <input type="color" id="tcCondCustomColor" value="#00FF41" style="width:36px;height:36px;border:none;background:none;cursor:pointer;padding:0;border-radius:2px;">
+        <button class="btn btn-secondary btn-sm" onclick="tcAddCustomCond()">+ ADD</button>
+      </div>
+    </div>
+  </div>
+</div>
+
+
 <script>
 // ── CONFIG ──────────────────────────────────────────────
 const SUPA_URL='https://zgzueeoxnqmzpdzofhxx.supabase.co';
@@ -504,6 +584,8 @@ const sb=window.supabase.createClient(SUPA_URL,SUPA_KEY);
 
 // ── STATE ────────────────────────────────────────────────
 let user=null,chars=[null,null,null,null],sessions=[],rtSub=null,saveTimer=null,dirty=false,sheetSlot=null;
+const TC_DEFAULT={npcs:[],activeCharId:null,round:1,conditions:{}};
+let tcState={...TC_DEFAULT},tcSub=null,tcCondCharId=null;
 
 // ── BOOT ─────────────────────────────────────────────────
 window.addEventListener('DOMContentLoaded',async()=>{
@@ -569,11 +651,17 @@ function subscribeRT(){
       if(p.new){chars[p.new.slot-1]=p.new;}
       const vp=document.getElementById('viewPlayers').classList.contains('active');
       const vg=document.getElementById('viewGm').classList.contains('active');
+      const vt=document.getElementById('viewTracker').classList.contains('active');
       if(vp)renderPlayersGrid();
       if(vg)renderGMPanel();
+      if(vt)tcRender();
       if(sheetSlot!==null&&p.new&&p.new.slot===sheetSlot+1&&!dirty)renderSheet(sheetSlot);
     })
     .on('postgres_changes',{event:'*',schema:'public',table:'sessions'},()=>loadSessions())
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'combat_state'},p=>{
+      if(p.new?.state){tcState={...TC_DEFAULT,...p.new.state};
+        if(document.getElementById('viewTracker').classList.contains('active'))tcRender();}
+    })
     .subscribe();
 }
 
@@ -585,6 +673,7 @@ function showView(n){
   window.scrollTo(0,0);
   if(n==='players')renderPlayersGrid();
   if(n==='gm'&&user?.isGM)renderGMPanel();
+  if(n==='tracker')initTracker();
 }
 function goHome(){showView('main');}
 function scrollSec(name){
@@ -922,20 +1011,218 @@ async function applyHP(i,sign){
 function E(s){if(!s)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function toast(msg,isErr=false){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show'+(isErr?' err':'');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),3000);}
 
-// ── INITIATIVE TRACKER ───────────────────────────────────
-function openTracker(){
-  const w=800,h=700;
-  const left=Math.round((screen.width-w)/2);
-  const top=Math.round((screen.height-h)/2);
-  const code=user?.code||'';
-  const url='initiative-tracker.html'+(code?`?code=${encodeURIComponent(code)}`:'');
-  window.open(
-    url,
-    'initiative_tracker',
-    `width=${w},height=${h},left=${left},top=${top},resizable=yes,scrollbars=yes,toolbar=no,menubar=no,location=no,status=no`
-  );
+// ── INITIATIVE TRACKER — now embedded as viewTracker ─────
+function openTracker(){showView('tracker');}
+
+
+// ── TRACKER MODULE ────────────────────────────────────────────────────────────
+const TC_CONDS=[
+  {name:'Aturdido',color:'#FFD700'},{name:'Quemado',color:'#FF4500'},
+  {name:'Hackeado',color:'#00FF41'},{name:'Paralizado',color:'#9400D3'},
+  {name:'Sangrando',color:'#DC143C'},{name:'Sobrecargado',color:'#00BFFF'},
+  {name:'Cegado',color:'#888888'},{name:'Marcado',color:'#FF00FF'},
+  {name:'EMP',color:'#FF8C00'},{name:'Infectado',color:'#7FFF00'},
+];
+function tcUid(){return Math.random().toString(36).substr(2,9);}
+function tcHpEmoji(hp,maxHp){
+  if(!maxHp)return'';const p=(hp/maxHp)*100;
+  if(p<5)return'\u{1F635}';if(p<25)return'\u{1F912}';if(p<50)return'\u{1F61F}';if(p<75)return'\u{1F610}';return'\u{1F60A}';
 }
 
+async function initTracker(){
+  await tcLoad();
+  if(!tcSub)tcSubscribeRT();
+  const isGM=user?.isGM;
+  const gmc=document.getElementById('tcGMControls');
+  const gma=document.getElementById('tcGMAddPanel');
+  const pp=document.getElementById('tcPlayerPanel');
+  if(gmc)gmc.style.display=isGM?'flex':'none';
+  if(gma)gma.style.display=isGM?'block':'none';
+  if(pp)pp.style.display=(!isGM)?'block':'none';
+  if(!isGM){const ch=chars[user.slot-1];if(ch){const el=document.getElementById('tcMyInit');if(el)el.value=ch.initiative||0;}}
+}
+
+async function tcLoad(){
+  try{
+    const{data,error}=await sb.from('combat_state').select('state').eq('id',1).single();
+    if(error){console.warn('combat_state table not found – run SQL setup');tcRender();return;}
+    if(data?.state)tcState={...TC_DEFAULT,...data.state};
+  }catch(e){console.error('tcLoad:',e);}
+  tcRender();
+}
+async function tcSave(){
+  try{await sb.from('combat_state').update({state:tcState}).eq('id',1);}
+  catch(e){console.error('tcSave:',e);}
+}
+function tcSubscribeRT(){
+  if(tcSub)return;
+  tcSub=sb.channel('tc-rt')
+    .on('postgres_changes',{event:'UPDATE',schema:'public',table:'combat_state'},p=>{
+      if(p.new?.state){tcState={...TC_DEFAULT,...p.new.state};
+        if(document.getElementById('viewTracker').classList.contains('active'))tcRender();}
+    }).subscribe();
+}
+
+function tcAllChars(){
+  const pcs=chars.map((ch,i)=>ch?{
+    id:'pc-'+(i+1),name:ch.char_name||'Jugador '+(i+1),type:'PC',slot:i+1,
+    initiative:ch.initiative||0,hp:ch.hp_current||0,maxHp:ch.hp_max||10,
+    conditions:(tcState.conditions||{})['pc-'+(i+1)]||[],
+  }:null).filter(Boolean);
+  const npcs=(tcState.npcs||[]).map(n=>({...n,type:'NPC',conditions:(tcState.conditions||{})[n.id]||[]}));
+  return[...pcs,...npcs].sort((a,b)=>b.initiative-a.initiative);
+}
+
+function tcRender(){
+  const all=tcAllChars();
+  const active=all.find(c=>c.id===tcState.activeCharId);
+  const rb=document.getElementById('tcRoundBadge');
+  if(rb)rb.textContent='RONDA '+String(tcState.round||1).padStart(3,'0');
+  const al=document.getElementById('tcActiveLabel');
+  if(al)al.textContent=active?'▶ '+active.name:'';
+  const list=document.getElementById('tcList');if(!list)return;
+  if(!all.length){list.innerHTML="<div style=\"font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--text-dim);padding:1rem 0;\">// Sin combatientes</div>";tcRenderCondSummary([]);return;}
+  const isGM=user?.isGM;
+  list.innerHTML=all.map((ch,i)=>{
+    const isActive=ch.id===tcState.activeCharId;
+    const canEdit=isGM||(ch.type==='PC'&&user?.slot===ch.slot);
+    const pct=ch.maxHp?Math.max(0,Math.min(100,(ch.hp/ch.maxHp)*100)):100;
+    const hc=pct>60?'var(--green)':pct>30?'var(--amber)':'var(--red)';
+    const em=ch.type==='NPC'?tcHpEmoji(ch.hp,ch.maxHp):'';
+    const slot=ch.type==='PC'?ch.slot:'null';
+    const condTags=(ch.conditions||[]).map(c=>`<span style="background:${c.color}18;border:1px solid ${c.color}66;color:${c.color};font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:1px;padding:1px 5px;border-radius:2px;display:inline-flex;align-items:center;gap:3px;margin-right:3px;margin-bottom:2px;">${E(c.name)}${c.duration!==null?`<span style="opacity:0.6;">${c.duration}</span>`:''}${isGM?`<span onclick="tcRemoveCond('${ch.id}','${c.id}')" style="cursor:pointer;opacity:0.5;margin-left:2px;">×</span>`:''}</span>`).join('');
+    const initEl=canEdit?`<input type="number" value="${ch.initiative}" title="Editar iniciativa" onchange="tcUpdateInit('${ch.id}','${ch.type}',${slot},this.value)" style="width:46px;background:transparent;border:none;border-bottom:1px solid ${isActive?'var(--amber)':'var(--border)'};color:${isActive?'var(--amber)':'#fff'};font-family:'Orbitron',monospace;font-size:1.2rem;font-weight:700;text-align:center;outline:none;padding:0;cursor:pointer;">`:`<span style="font-family:'Orbitron',monospace;font-size:1.2rem;font-weight:700;color:${isActive?'var(--amber)':'#fff'};min-width:46px;text-align:center;display:inline-block;">${ch.initiative}</span>`;
+    const hpVal=canEdit?`<input type="number" value="${ch.hp}" title="Editar HP" onchange="tcUpdateHP('${ch.id}','${ch.type}',${slot},this.value)" style="width:48px;background:transparent;border:none;border-bottom:1px dashed ${hc};color:${hc};font-family:'Orbitron',monospace;font-size:12px;font-weight:700;text-align:center;outline:none;padding:0;cursor:pointer;">`:`<span style="color:${hc};font-family:'Orbitron',monospace;font-size:12px;font-weight:700;">${ch.hp}</span>`;
+    const hpBtns=canEdit?`<button onclick="tcHpDelta('${ch.id}','${ch.type}',${slot},-1)" style="background:none;border:1px solid rgba(255,34,68,0.25);color:rgba(255,34,68,0.7);cursor:pointer;font-size:11px;padding:1px 5px;line-height:1.4;">−</button>${hpVal}/${ch.maxHp}${em?`<span style="font-size:14px;">${em}</span>`:''}<button onclick="tcHpDelta('${ch.id}','${ch.type}',${slot},1)" style="background:none;border:1px solid rgba(57,255,20,0.25);color:rgba(57,255,20,0.7);cursor:pointer;font-size:11px;padding:1px 5px;line-height:1.4;">+</button>`:`${hpVal}/${ch.maxHp}${em?`<span style="font-size:14px;">${em}</span>`:''}`;
+    return`<div style="background:${isActive?'rgba(0,245,255,0.04)':'var(--bg)'};border:1px solid ${isActive?'var(--border-bright)':'var(--border)'};border-left:3px solid ${isActive?'var(--cyan)':'var(--border)'};padding:0.6rem 0.9rem;margin-bottom:5px;transition:all 0.2s;box-shadow:${isActive?'0 0 10px rgba(0,245,255,0.08)':'none'};"><div style="display:flex;align-items:center;gap:0.6rem;flex-wrap:nowrap;"><span style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);min-width:18px;">#${i+1}</span>${initEl}<div style="flex:1;min-width:0;"><div style="display:flex;align-items:center;gap:0.4rem;flex-wrap:wrap;"><span style="font-size:0.9rem;color:${isActive?'var(--cyan)':'var(--text)'};font-weight:${isActive?600:400};">${E(ch.name)}</span><span style="font-family:'Share Tech Mono',monospace;font-size:9px;color:${ch.type==='PC'?'var(--cyan-dim)':'var(--red)'};border:1px solid ${ch.type==='PC'?'rgba(0,245,255,0.25)':'rgba(255,34,68,0.25)'};padding:0 4px;">${ch.type==='PC'?'PJ':'PNJ'}</span></div>${condTags?`<div style="margin-top:3px;">${condTags}</div>`:''}</div><div style="display:flex;align-items:center;gap:4px;flex-wrap:nowrap;font-family:'Share Tech Mono',monospace;font-size:11px;flex-shrink:0;">${hpBtns}</div><div style="width:70px;height:3px;background:rgba(255,255,255,0.05);flex-shrink:0;"><div style="width:${pct}%;height:100%;background:${hc};transition:width 0.3s;"></div></div>${isGM?`<div style="display:flex;flex-direction:column;gap:2px;flex-shrink:0;"><button onclick="tcOpenCondModal('${ch.id}')" style="background:none;border:1px solid rgba(0,245,255,0.2);color:var(--cyan-dim);cursor:pointer;font-family:'Share Tech Mono',monospace;font-size:8px;letter-spacing:1px;padding:2px 4px;">⚡</button><button onclick="tcRemoveChar('${ch.id}','${ch.type}')" style="background:none;border:1px solid rgba(255,34,68,0.2);color:rgba(255,34,68,0.5);cursor:pointer;font-family:'Share Tech Mono',monospace;font-size:8px;padding:2px 4px;">✕</button></div>`:''}</div></div>`;
+  }).join('');
+  tcRenderCondSummary(all);
+}
+
+function tcRenderCondSummary(all){
+  const el=document.getElementById('tcCondSummary');if(!el)return;
+  const wc=all.filter(c=>c.conditions&&c.conditions.length>0);
+  if(!wc.length){el.innerHTML='// Ninguna';return;}
+  el.innerHTML=wc.map(c=>`<div style="margin-bottom:0.5rem;"><div style="font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;color:${c.type==='PC'?'var(--cyan-dim)':'var(--red)'};margin-bottom:3px;">${E(c.name)}</div><div style="display:flex;flex-wrap:wrap;gap:3px;">${c.conditions.map(cd=>`<span style="background:${cd.color}18;border:1px solid ${cd.color}55;color:${cd.color};font-family:'Share Tech Mono',monospace;font-size:9px;padding:1px 5px;border-radius:2px;">${E(cd.name)}${cd.duration!==null?` (${cd.duration}t)`:''}</span>`).join('')}</div></div>`).join('');
+}
+
+function tcProcessConds(charId,timing){
+  if(!tcState.conditions[charId])return;
+  tcState.conditions[charId]=tcState.conditions[charId].map(c=>c.reducesAt===timing&&c.duration!==null?{...c,duration:c.duration-1}:c).filter(c=>c.duration===null||c.duration>0);
+  if(!tcState.conditions[charId].length)delete tcState.conditions[charId];
+}
+
+async function tcNextTurn(){
+  if(!user?.isGM)return;
+  const all=tcAllChars();if(!all.length)return;
+  if(tcState.activeCharId)tcProcessConds(tcState.activeCharId,'end');
+  const cur=all.findIndex(c=>c.id===tcState.activeCharId);
+  const next=(cur+1)%all.length;
+  if(next===0)tcState.round=(tcState.round||1)+1;
+  tcState.activeCharId=all[next].id;
+  tcProcessConds(tcState.activeCharId,'start');
+  await tcSave();
+}
+async function tcPrevTurn(){
+  if(!user?.isGM)return;const all=tcAllChars();if(!all.length)return;
+  const cur=all.findIndex(c=>c.id===tcState.activeCharId);
+  tcState.activeCharId=all[cur<=0?all.length-1:cur-1].id;await tcSave();
+}
+async function tcReset(){
+  if(!user?.isGM)return;const all=tcAllChars();
+  tcState={...TC_DEFAULT,npcs:tcState.npcs||[],activeCharId:all[0]?.id||null};await tcSave();
+}
+async function tcAddNPC(){
+  if(!user?.isGM)return;
+  const name=document.getElementById('tcNPCName').value.trim();if(!name)return;
+  const init=parseInt(document.getElementById('tcNPCInit').value)||0;
+  const hp=parseInt(document.getElementById('tcNPCHp').value)||10;
+  tcState.npcs=[...(tcState.npcs||[]),{id:tcUid(),name,initiative:init,hp,maxHp:hp}];
+  if(!tcState.activeCharId){const all=tcAllChars();tcState.activeCharId=all[0]?.id||null;}
+  document.getElementById('tcNPCName').value='';document.getElementById('tcNPCInit').value='';document.getElementById('tcNPCHp').value='10';
+  await tcSave();
+}
+async function tcRemoveChar(id,type){
+  if(!user?.isGM)return;
+  if(type==='NPC')tcState.npcs=(tcState.npcs||[]).filter(n=>n.id!==id);
+  if(tcState.activeCharId===id){const all=tcAllChars();const i=all.findIndex(c=>c.id===id);tcState.activeCharId=all[i+1]?.id||all[i-1]?.id||null;}
+  const nc={...tcState.conditions};delete nc[id];tcState.conditions=nc;await tcSave();
+}
+
+async function tcHpDelta(charId,type,slot,delta){
+  if(type==='PC'){
+    if(!user?.isGM&&user?.slot!==slot)return;const ch=chars[slot-1];if(!ch)return;
+    const v=Math.max(0,Math.min(ch.hp_max||10,(ch.hp_current||0)+delta));
+    await sb.from('characters').update({hp_current:v}).eq('slot',slot);chars[slot-1]={...ch,hp_current:v};tcRender();
+  }else{
+    if(!user?.isGM)return;const n=(tcState.npcs||[]).find(x=>x.id===charId);if(!n)return;n.hp=Math.max(0,n.hp+delta);await tcSave();
+  }
+}
+async function tcUpdateHP(charId,type,slot,value){
+  const v=parseInt(value);if(isNaN(v))return;
+  if(type==='PC'){
+    if(!user?.isGM&&user?.slot!==slot)return;const ch=chars[slot-1];if(!ch)return;
+    const nv=Math.max(0,Math.min(ch.hp_max||10,v));
+    await sb.from('characters').update({hp_current:nv}).eq('slot',slot);chars[slot-1]={...ch,hp_current:nv};tcRender();
+  }else{
+    if(!user?.isGM)return;const n=(tcState.npcs||[]).find(x=>x.id===charId);if(!n)return;n.hp=Math.max(0,Math.min(n.maxHp,v));await tcSave();
+  }
+}
+async function tcUpdateInit(charId,type,slot,value){
+  const v=parseInt(value)||0;
+  if(type==='PC'){
+    if(!user?.isGM&&user?.slot!==slot)return;const ch=chars[slot-1];if(!ch)return;
+    await sb.from('characters').update({initiative:v}).eq('slot',slot);chars[slot-1]={...ch,initiative:v};tcRender();
+  }else{
+    if(!user?.isGM)return;const n=(tcState.npcs||[]).find(x=>x.id===charId);if(!n)return;n.initiative=v;await tcSave();
+  }
+}
+async function tcSetMyInit(){
+  if(user?.isGM)return;
+  const v=parseInt(document.getElementById('tcMyInit').value)||0;
+  const slot=user.slot;const ch=chars[slot-1];if(!ch)return;
+  await sb.from('characters').update({initiative:v}).eq('slot',slot);chars[slot-1]={...ch,initiative:v};
+  if(!tcState.activeCharId){const all=tcAllChars();tcState.activeCharId=all[0]?.id||null;await tcSave();}
+  tcRender();toast('Iniciativa confirmada');
+}
+
+function tcOpenCondModal(charId){
+  if(!user?.isGM)return;tcCondCharId=charId;
+  const all=tcAllChars();const ch=all.find(c=>c.id===charId);
+  const title=document.getElementById('tcModalTitle');if(title)title.textContent='⚡ CONDICIONES — '+(ch?.name||'');
+  const currentConds=(tcState.conditions||{})[charId]||[];
+  const presetsEl=document.getElementById('tcPresetBtns');
+  presetsEl.innerHTML=TC_CONDS.map(def=>{
+    const active=currentConds.find(c=>c.name===def.name);
+    return`<button style="background:${active?def.color+'22':'transparent'};border:1px solid ${def.color};color:${def.color};font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:1px;padding:3px 8px;border-radius:2px;cursor:pointer;" onclick="tcToggleCond('${charId}','${def.name}','${def.color}')">${active?'✓ ':''}${def.name}</button>`;
+  }).join('');
+  document.getElementById('tcCondModal').style.display='flex';
+}
+function tcCloseCondModal(){document.getElementById('tcCondModal').style.display='none';tcCondCharId=null;}
+
+async function tcToggleCond(charId,name,color){
+  if(!tcState.conditions)tcState.conditions={};if(!tcState.conditions[charId])tcState.conditions[charId]=[];
+  const exists=tcState.conditions[charId].find(c=>c.name===name);
+  if(exists){tcState.conditions[charId]=tcState.conditions[charId].filter(c=>c.name!==name);}
+  else{const dur=parseInt(document.getElementById('tcCondDur').value);const when=document.getElementById('tcCondWhen').value;tcState.conditions[charId].push({id:tcUid(),name,color,duration:dur===0?null:dur,reducesAt:when});}
+  if(!tcState.conditions[charId].length)delete tcState.conditions[charId];
+  await tcSave();tcOpenCondModal(charId);
+}
+async function tcAddCustomCond(){
+  if(!tcCondCharId)return;const name=document.getElementById('tcCondCustomName').value.trim();if(!name)return;
+  const color=document.getElementById('tcCondCustomColor').value;
+  const dur=parseInt(document.getElementById('tcCondDur').value);const when=document.getElementById('tcCondWhen').value;
+  if(!tcState.conditions)tcState.conditions={};if(!tcState.conditions[tcCondCharId])tcState.conditions[tcCondCharId]=[];
+  tcState.conditions[tcCondCharId].push({id:tcUid(),name,color,duration:dur===0?null:dur,reducesAt:when});
+  document.getElementById('tcCondCustomName').value='';
+  await tcSave();tcOpenCondModal(tcCondCharId);
+}
+async function tcRemoveCond(charId,condId){
+  if(!tcState.conditions?.[charId])return;
+  tcState.conditions[charId]=tcState.conditions[charId].filter(c=>c.id!==condId);
+  if(!tcState.conditions[charId].length)delete tcState.conditions[charId];
+  await tcSave();
+}
 // ── THEME ─────────────────────────────────────────────────
 function toggleTheme(){
   const isLight=document.body.classList.toggle('light');
