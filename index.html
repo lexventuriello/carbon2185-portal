@@ -280,7 +280,7 @@ footer span{color:var(--cyan-dim);}
     <li><a href="#" onclick="goHome();return false;">Inicio</a></li>
     <li><a href="#" onclick="scrollSec('Referencia');return false;">Referencia</a></li>
     <li><a href="#" onclick="scrollSec('Bitacoras');return false;">Bitácoras</a></li>
-    <li><a href="InitiativeTracker.html" target="_blank">⚡ Tracker</a></li>
+    <li><a href="#" onclick="showTracker();return false;">⚡ Tracker</a></li>
     <li id="navGMLink" style="display:none;"><a href="#" onclick="showView('gm');return false;">⬡ GM Panel</a></li>
   </ul>
   <div class="nav-right">
@@ -302,8 +302,8 @@ footer span{color:var(--cyan-dim);}
       <div class="login-title">ACCESO AL<br>SISTEMA</div>
       <div style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--cyan-dim);letter-spacing:3px;text-transform:uppercase;margin-top:0.3rem;margin-bottom:2rem;">San Francisco // 2185</div>
       <div class="login-codes">
-        <div>Jugadores: <strong>R9</strong> <strong>NTON</strong> <strong>QUILL</strong> <strong>JUKA</strong></div>
-        <div>Master / GM: <strong>DM</strong></div>
+        <div>Jugadores: <strong>R9</strong> <strong>NEON-02</strong> <strong>QUILL</strong> <strong>JUKA</strong></div>
+        <div>Master / GM: <strong>MASTER-2185</strong></div>
       </div>
       <div class="form-group">
         <label class="login-label">Código de acceso</label>
@@ -389,7 +389,7 @@ footer span{color:var(--cyan-dim);}
         <div class="resource-icon">🐢</div><div class="resource-name">Dragon Turtle Games</div>
         <div class="resource-desc">Sitio oficial del sistema Carbon 2185.</div><span class="resource-arrow">↗</span>
       </a>
-      <a href="InitiativeTracker.html" target="_blank" class="resource-card" style="border-color:rgba(57,255,20,0.25);">
+      <a href="#" onclick="showTracker();return false;" class="resource-card" style="border-color:rgba(57,255,20,0.25);">
         <div class="resource-icon">⚡</div><div class="resource-name" style="color:var(--green);">Tracker de Iniciativa</div>
         <div class="resource-desc">Gestión de turno, HP y condiciones en combate. Vista de jugadores incluida.</div><span class="resource-arrow" style="color:var(--green);">↗</span>
       </a>
@@ -399,6 +399,11 @@ footer span{color:var(--cyan-dim);}
 </div>
 
 
+
+<!-- TRACKER -->
+<div class="view" id="viewTracker" style="padding-top:56px;">
+  <iframe id="trackerFrame" src="" style="width:100%;height:calc(100vh - 56px);border:none;display:block;"></iframe>
+</div>
 
 <!-- GM PANEL -->
 <div class="view" id="viewGm">
@@ -430,7 +435,7 @@ footer span{color:var(--cyan-dim);}
 // ── CONFIG ──────────────────────────────────────────────
 const SUPA_URL='https://zgzueeoxnqmzpdzofhxx.supabase.co';
 const SUPA_KEY='eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InpnenVlZW94bnFtenBkem9maHh4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzc5ODI4NjIsImV4cCI6MjA5MzU1ODg2Mn0.PF_TKkSEuY7pAdW5T3E7Yk3h_ApkB_dEWua4e33VqJw';
-const GM_CODE='DM';
+const GM_CODE='MASTER-2185';
 const sb=window.supabase.createClient(SUPA_URL,SUPA_KEY);
 
 // ── STATE ────────────────────────────────────────────────
@@ -586,6 +591,21 @@ function E(s){if(!s)return '';return String(s).replace(/&/g,'&amp;').replace(/</
 function toast(msg,isErr=false){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show'+(isErr?' err':'');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),3000);}
 
 
+
+// ── TRACKER ──────────────────────────────────────────
+function showTracker() {
+  if (!user) return;
+  const frame = document.getElementById('trackerFrame');
+  if (user.isGM) {
+    localStorage.removeItem('carbon2185_me_name');
+    frame.src = 'InitiativeTracker.html';
+  } else {
+    // Pass player identity so tracker auto-identifies them
+    localStorage.setItem('carbon2185_me_name', user.player_name || user.code);
+    frame.src = 'InitiativeTracker.html?view=player';
+  }
+  showView('tracker');
+}
 
 // ── THEME ─────────────────────────────────────────────────
 function toggleTheme(){
