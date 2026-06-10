@@ -121,25 +121,6 @@
         }
       }, [myChar?.id, myChar?.initiative, myChar?.hp, myChar?.maxHp]);
 
-      /* Auto-identify from portal login (carbon2185_me_name set by index.html) */
-      useEffect(() => {
-        if (meId) return;
-        const autoName = (localStorage.getItem('carbon2185_me_name') || '').toLowerCase().trim();
-        if (!autoName) return;
-        const pcs = state.characters.filter(c => c.type === 'PC');
-        const match = pcs.find(c => {
-          const n = c.name.toLowerCase().trim();
-          return n === autoName || n.includes(autoName) || autoName.includes(n);
-        });
-        if (match) {
-          localStorage.setItem(ME_KEY, match.id);
-          setMeId(match.id);
-          setInitVal(String(match.initiative ?? 0));
-          setHpVal(match.hp !== null ? String(match.hp) : '');
-          setMaxHpVal(match.maxHp !== null ? String(match.maxHp) : '');
-        }
-      }, [state.characters, meId]);
-
       /* Write my character's changes back to shared state */
       const updateMe = (updates) => {
         const cur = loadState();

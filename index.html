@@ -596,14 +596,7 @@ function toast(msg,isErr=false){const t=document.getElementById('toast');t.textC
 function showTracker() {
   if (!user) return;
   const frame = document.getElementById('trackerFrame');
-  if (user.isGM) {
-    localStorage.removeItem('carbon2185_me_name');
-    frame.src = 'InitiativeTracker.html';
-  } else {
-    // Pass player identity so tracker auto-identifies them
-    localStorage.setItem('carbon2185_me_name', user.player_name || user.code);
-    frame.src = 'InitiativeTracker.html?view=player';
-  }
+  frame.src = user.isGM ? 'InitiativeTracker.html' : 'InitiativeTracker.html?view=player';
   showView('tracker');
 }
 
