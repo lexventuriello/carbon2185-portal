@@ -259,6 +259,23 @@ nav{position:fixed;top:0;left:0;right:0;z-index:1000;background:rgba(5,10,14,0.9
 .fadein{animation:fadein 0.35s ease both;}
 .glitch{animation:flicker 6s infinite;}
 @keyframes flicker{0%,97%,100%{opacity:1}98%{opacity:0.4}99%{opacity:0.8}}
+/* CHARACTER CARDS */
+.char-card{background:var(--panel);border:1px solid var(--border);overflow:hidden;display:flex;flex-direction:column;transition:border-color 0.3s,box-shadow 0.3s;}
+.char-card:hover{box-shadow:0 0 30px rgba(0,245,255,0.08);}
+.char-img-wrap{width:100%;aspect-ratio:3/4;overflow:hidden;position:relative;display:flex;align-items:center;justify-content:center;max-height:340px;}
+.char-img{width:100%;height:100%;object-fit:cover;object-position:top;filter:grayscale(20%) contrast(1.1);transition:transform 0.4s;}
+.char-card:hover .char-img{transform:scale(1.03);}
+.char-img-placeholder{width:100%;height:100%;display:flex;align-items:center;justify-content:center;font-size:4rem;opacity:0.15;}
+.char-body{padding:1.4rem 1.5rem;flex:1;display:flex;flex-direction:column;gap:0.5rem;}
+.char-code{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:3px;text-transform:uppercase;opacity:0.7;}
+.char-name{font-family:'Orbitron',monospace;font-size:1.8rem;font-weight:900;color:#fff;letter-spacing:4px;line-height:1;}
+.char-role{font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:2px;text-transform:uppercase;margin-top:0.2rem;}
+.char-divider{border:none;border-top:1px solid;margin:0.8rem 0;}
+.char-lore{font-size:1rem;color:var(--text-dim);font-weight:300;line-height:1.7;}
+.char-detail{background:var(--panel2);border-left:3px solid var(--border-bright);padding:0.7rem 1rem;margin-top:0.5rem;}
+.char-detail-label{display:block;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:3px;color:var(--cyan-dim);text-transform:uppercase;margin-bottom:0.3rem;}
+.char-detail-val{font-size:0.95rem;color:var(--text-dim);font-weight:300;line-height:1.6;}
+.char-quote{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text-dim);letter-spacing:1px;font-style:italic;margin-top:auto;padding-top:1rem;border-top:1px solid var(--border);opacity:0.8;}
 footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:2rem;text-align:center;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;}
 footer span{color:var(--cyan-dim);}
 @media(max-width:760px){.world-grid,.two-col{grid-template-columns:1fr;}.stat-grid{grid-template-columns:repeat(3,1fr);}.form-row,.form-row-3{grid-template-columns:1fr;}.skills-grid{grid-template-columns:1fr;}nav .nav-links li:not(.nav-dropdown){display:none;}}
@@ -278,7 +295,7 @@ footer span{color:var(--cyan-dim);}
   <div class="nav-brand glitch" onclick="goHome()">TERMINAL <span>OVERDRIVE</span></div>
   <ul class="nav-links">
     <li><a href="#" onclick="goHome();return false;">Inicio</a></li>
-    <li><a href="#" onclick="scrollSec('Referencia');return false;">Referencia</a></li>
+    <li><a href="#" onclick="showView('personajes');return false;">⚔ Personajes</a></li>
     <li><a href="#" onclick="scrollSec('Bitacoras');return false;">Bitácoras</a></li>
     <li><a href="#" onclick="showTracker();return false;">⚡ Tracker</a></li>
     <li id="navGMLink" style="display:none;"><a href="#" onclick="showView('gm');return false;">⬡ GM Panel</a></li>
@@ -399,6 +416,98 @@ footer span{color:var(--cyan-dim);}
 </div>
 
 
+
+<!-- PERSONAJES -->
+<div class="view" id="viewPersonajes">
+  <div class="page-wide fadein" style="padding-top:96px;">
+    <div class="section-label">Enigma Collective</div>
+    <h2 class="section-title">Los <span class="hi">Personajes</span></h2>
+    <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem;margin-top:0.5rem;" id="charGrid">
+
+      <!-- QUILL -->
+      <div class="char-card" style="border-color:rgba(0,245,255,0.4);">
+        <div class="char-img-wrap" style="background:linear-gradient(160deg,#0a1a2e,#050a14);">
+          <img src="quill.jpg" alt="Quill" class="char-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="char-img-placeholder" style="display:none;color:#00f5ff;">⚙</div>
+        </div>
+        <div class="char-body">
+          <div class="char-code" style="color:var(--cyan);">// UNIDAD QUILL</div>
+          <div class="char-name">QUILL</div>
+          <div class="char-role" style="color:var(--cyan);">Android · Investigador · Ex-Control de Inventario</div>
+          <div class="char-divider" style="border-color:rgba(0,245,255,0.2);"></div>
+          <p class="char-lore">Era un robot trabajador/ingeniero industrial que sufrió un accidente grave y fue descartado como chatarra. Una mafia rusa lo rescató y lo reprogramó para control de inventario y prevención de robos.</p>
+          <p class="char-lore">Durante años procesó stock, facturas y cámaras de seguridad. La hija del jefe le enseñó K-Pop, chismes de celebridades y cultura popular. Cuando una organización rival masacró a la familia, algo cambió en sus redes neuronales.</p>
+          <div class="char-detail">
+            <span class="char-detail-label">ARTEFACTO</span>
+            <span class="char-detail-val">Máquina de escribir portátil — contiene fotografías, grabaciones, expedientes criminales, canciones de K-Pop y notas sobre chimentos.</span>
+          </div>
+          <div class="char-quote">"Antes generaba reportes de calidad. Ahora audita tragedias."</div>
+        </div>
+      </div>
+
+      <!-- NTON -->
+      <div class="char-card" style="border-color:rgba(255,34,68,0.4);">
+        <div class="char-img-wrap" style="background:linear-gradient(160deg,#1a0a0e,#0f0508);">
+          <img src="nton.jpg" alt="NTon" class="char-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="char-img-placeholder" style="display:none;color:#ff2244;">✚</div>
+        </div>
+        <div class="char-body">
+          <div class="char-code" style="color:var(--red);">// SUJETO NTON</div>
+          <div class="char-name">NTON</div>
+          <div class="char-role" style="color:var(--red);">Médico de Combate · Desertor Corpo · Operativo Callejero</div>
+          <div class="char-divider" style="border-color:rgba(255,34,68,0.2);"></div>
+          <p class="char-lore">Adquirido de niño por una corporación y entrenado para servir como médico de combate en su ejército privado. Por su gran capacidad se le otorgó una mejora cibernética para ser más eficaz en batalla.</p>
+          <p class="char-lore">Luego de años sirviendo, comprendió que las luchas que libraba eran en vano — solo servían a intereses ajenos. Cansado de ver gente morir en sus manos por causas vacías, una noche escapó hacia el bajo mundo, fuera del radar corporativo.</p>
+          <div class="char-detail">
+            <span class="char-detail-label">MISIÓN</span>
+            <span class="char-detail-val">Ayudar a la gente en sus batallas y terminar con la corrupción de las corporaciones.</span>
+          </div>
+          <div class="char-quote">"Las luchas que librábamos eran en vano. Decidí librar las mías."</div>
+        </div>
+      </div>
+
+      <!-- JUKA -->
+      <div class="char-card" style="border-color:rgba(255,170,0,0.4);">
+        <div class="char-img-wrap" style="background:linear-gradient(160deg,#1a1200,#0f0c00);">
+          <img src="juka.jpg" alt="Juka" class="char-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="char-img-placeholder" style="display:none;color:#ffaa00;">◈</div>
+        </div>
+        <div class="char-body">
+          <div class="char-code" style="color:var(--amber);">// SUJETO JUKA</div>
+          <div class="char-name">JUKA</div>
+          <div class="char-role" style="color:var(--amber);">Archivos clasificados — acceso restringido</div>
+          <div class="char-divider" style="border-color:rgba(255,170,0,0.2);"></div>
+          <div style="text-align:center;padding:2rem 1rem;">
+            <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--amber);letter-spacing:3px;opacity:0.6;">[ EXPEDIENTE ENCRIPTADO ]</div>
+            <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:2px;margin-top:0.5rem;">PRÓXIMAMENTE</div>
+          </div>
+        </div>
+      </div>
+
+      <!-- R9 -->
+      <div class="char-card" style="border-color:rgba(57,255,20,0.4);">
+        <div class="char-img-wrap" style="background:linear-gradient(160deg,#061a00,#030f00);">
+          <img src="r9.jpg" alt="R9" class="char-img" onerror="this.style.display='none';this.nextElementSibling.style.display='flex'">
+          <div class="char-img-placeholder" style="display:none;color:#39ff14;">⬡</div>
+        </div>
+        <div class="char-body">
+          <div class="char-code" style="color:var(--green);">// SUJETO R9</div>
+          <div class="char-name">R9</div>
+          <div class="char-role" style="color:var(--green);">Archivos clasificados — acceso restringido</div>
+          <div class="char-divider" style="border-color:rgba(57,255,20,0.2);"></div>
+          <div style="text-align:center;padding:2rem 1rem;">
+            <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--green);letter-spacing:3px;opacity:0.6;">[ EXPEDIENTE ENCRIPTADO ]</div>
+            <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:2px;margin-top:0.5rem;">PRÓXIMAMENTE</div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+    <div style="text-align:center;margin-top:2.5rem;">
+      <button class="btn btn-secondary" onclick="goHome()">◄ Volver al inicio</button>
+    </div>
+  </div>
+</div>
 
 <!-- TRACKER -->
 <div class="view" id="viewTracker" style="padding-top:56px;">
