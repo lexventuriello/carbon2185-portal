@@ -91,7 +91,11 @@
     ════════════════════════════════════════════════════════ */
     function PlayerView() {
       const [state,    setState]    = useState(() => loadState() || { characters:[], activeCharId:null, round:1 });
-      const [meId,     setMeId]     = useState(() => localStorage.getItem(ME_KEY));
+      const [meId,     setMeId]     = useState(() => {
+        // En iframe (portal), siempre arrancar sin identidad para que cada jugador elija la suya
+        if (IN_IFRAME) { localStorage.removeItem(ME_KEY); return null; }
+        return localStorage.getItem(ME_KEY);
+      });
       const [initVal,  setInitVal]  = useState("");
       const [hpVal,    setHpVal]    = useState("");
       const [maxHpVal, setMaxHpVal] = useState("");

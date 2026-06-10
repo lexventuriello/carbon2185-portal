@@ -596,7 +596,13 @@ function toast(msg,isErr=false){const t=document.getElementById('toast');t.textC
 function showTracker() {
   if (!user) return;
   const frame = document.getElementById('trackerFrame');
-  frame.src = user.isGM ? 'InitiativeTracker.html' : 'InitiativeTracker.html?view=player';
+  if (user.isGM) {
+    frame.src = 'InitiativeTracker.html';
+  } else {
+    // Limpia la identidad guardada para que cada jugador elija su personaje
+    localStorage.removeItem('carbon2185_me');
+    frame.src = 'InitiativeTracker.html?view=player';
+  }
   showView('tracker');
 }
 
