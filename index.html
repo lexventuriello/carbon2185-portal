@@ -434,8 +434,8 @@ footer span{color:var(--cyan-dim);}
           <p class="char-lore">Era un robot trabajador/ingeniero industrial que sufrió un accidente grave y fue descartado como chatarra. Una mafia rusa lo rescató y lo reprogramó para control de inventario y prevención de robos.</p>
           <p class="char-lore">Durante años procesó stock, facturas y cámaras de seguridad. La hija del jefe le enseñó K-Pop, chismes de celebridades y cultura popular. Cuando una organización rival masacró a la familia, algo cambió en sus redes neuronales.</p>
           <div class="char-detail">
-            <span class="char-detail-label">Misión</span>
-            <span class="char-detail-val">Vengar a su familia masacrada por la mafia.</span>
+            <span class="char-detail-label">ARTEFACTO</span>
+            <span class="char-detail-val">Máquina de escribir portátil — contiene fotografías, grabaciones, expedientes criminales, canciones de K-Pop y notas sobre chimentos.</span>
           </div>
           <div class="char-quote">"Antes generaba reportes de calidad. Ahora audita tragedias."</div>
         </div>
@@ -463,35 +463,35 @@ footer span{color:var(--cyan-dim);}
         <div class="char-body">
           <div class="char-code" style="color:var(--amber);">// SUJETO JUKA</div>
           <div class="char-name">JUKA</div>
-          <div class="char-role" style="color:var(--amber);">Enforcer · Exiliado a la Luna · Punk </div>
-            <div class="char-divider" style="border-color:rgba(255,34,68,0.2);"></div>
-            <p class="char-lore">El pasado JUKA es un misterio, incluso para él. Su primer recuerdo es haber despertado en una camilla de terapia intensiva de un hospital, en la luna. Al poco tiempo de poder caminar fue enviado de vuelta a la tierra solamente con las ropas ensangrentadas con las cuales llegó al hospital unos pocos W y un bolso apestoso.</p>
-          <p class="char-lore">Hoy vive en un viejo taller mecánico, no sabe bien porque al volver a la tierra fue al primer lugar al que fue, pero la gente de los alrededores parece conocerlo y algunos hasta lo saludan con una sonrisa. Por algún motivo sabe cómo reparar automóviles y tiene un talento innato para pelear. A veces le vuelven a la mente flashes de un pasado de violencia, o el triste recuerdo de un niño al que no conoce, pero siente el impulso de proteger.</p>
-          <div class="char-detail">
-            <span class="char-detail-label">MISIÓN</span>
-            <span class="char-detail-val">Recuperar su pasado</span>
+          <div class="char-role" style="color:var(--amber);">Archivos clasificados — acceso restringido</div>
+          <div class="char-divider" style="border-color:rgba(255,170,0,0.2);"></div>
+          <div style="text-align:center;padding:2rem 1rem;">
+            <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--amber);letter-spacing:3px;opacity:0.6;">[ EXPEDIENTE ENCRIPTADO ]</div>
+            <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:2px;margin-top:0.5rem;">PRÓXIMAMENTE</div>
           </div>
-          <div class="char-quote">"Traguen Plomo, hijos de puta"</div>
         </div>
       </div>
 
       <!-- R9 -->
-      <div class="char-card" style="border-color:rgba(255,170,0,0.4);">
+      <div class="char-card" style="border-color:rgba(57,255,20,0.4);">
         <div class="char-body">
-          <div class="char-code" style="color:var(--amber);">// SUJETO R9</div>
+          <div class="char-code" style="color:var(--green);">// SUJETO R9</div>
           <div class="char-name">R9</div>
-          <div class="char-role" style="color:var(--amber);">Punk - Scoundrel - Activo Valioso </div>
-            <div class="char-divider" style="border-color:rgba(255,34,68,0.2);"></div>
-            <p class="char-lore">Una misión terminó en desastre....  una bala zurcó el aire y todo se volvió negro. Pero para algunas corpraciones hay activos que son demasiado valiosos. A R9 lograron salvarle la vida, pero ya no era quien solía ser. Fue entrenado para combatir, infiltrarse y eliminar objetivos sin hacer preguntas. Era exactamente lo que Shenzhen Solutions siempre había querido crear.</p>
-          <p class="char-lore">Pero la memoria tiene formas extrañas de resistirse al olvido. Pequeños destellos comenzaron a regresar: un rostro, una voz, un disparo… y la certeza de que aquella vida no le pertenecía. 
-La conciencia que una vez lo llevó a escapar despertó por segunda vez.</p>
-          <div class="char-detail">
-            <span class="char-detail-label">MISIÓN</span>
-            <span class="char-detail-val">Cortar todo vínculo con Shenzhen Solutions </span>
+          <div class="char-role" style="color:var(--green);">Archivos clasificados — acceso restringido</div>
+          <div class="char-divider" style="border-color:rgba(57,255,20,0.2);"></div>
+          <div style="text-align:center;padding:2rem 1rem;">
+            <div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--green);letter-spacing:3px;opacity:0.6;">[ EXPEDIENTE ENCRIPTADO ]</div>
+            <div style="font-family:'Share Tech Mono',monospace;font-size:10px;color:var(--text-dim);letter-spacing:2px;margin-top:0.5rem;">PRÓXIMAMENTE</div>
           </div>
-          <div class="char-quote">"Jamás seré propiedad de nadie"</div>
         </div>
       </div>
+
+    </div>
+    <div style="text-align:center;margin-top:2.5rem;">
+      <button class="btn btn-secondary" onclick="goHome()">◄ Volver al inicio</button>
+    </div>
+  </div>
+</div>
 
 <!-- TRACKER -->
 <div class="view" id="viewTracker" style="padding-top:56px;">
@@ -542,15 +542,22 @@ window.addEventListener('DOMContentLoaded',async()=>{
 });
 
 // ── LOGIN ────────────────────────────────────────────────
+// Alias por si el código en DB aún es el antiguo
+const CODE_ALIASES={'NTON':'NEON-02'};
 async function doLogin(){
   const code=document.getElementById('loginCode').value.trim().toUpperCase();
   const err=document.getElementById('loginErr');
   err.textContent='';
   if(!code){err.textContent='// Ingresa tu código';return;}
   if(code===GM_CODE){user={slot:0,code:GM_CODE,isGM:true,player_name:'GM'};sessionStorage.setItem('c2185u',JSON.stringify(user));await afterLogin();return;}
-  const{data,error}=await sb.from('players').select('*').eq('code',code).single();
-  if(error||!data){err.textContent='// Código no reconocido';return;}
-  user={slot:data.slot,code:data.code,isGM:false,player_name:data.player_name};
+  // Intentar con el código ingresado; si falla, probar alias
+  let res=await sb.from('players').select('*').eq('code',code).single();
+  if((res.error||!res.data)&&CODE_ALIASES[code]){
+    res=await sb.from('players').select('*').eq('code',CODE_ALIASES[code]).single();
+  }
+  if(res.error||!res.data){err.textContent='// Código no reconocido';return;}
+  // Guardar con el código que el jugador ingresó (no el alias de DB)
+  user={slot:res.data.slot,code:code,isGM:false,player_name:res.data.player_name};
   sessionStorage.setItem('c2185u',JSON.stringify(user));
   await afterLogin();
 }
