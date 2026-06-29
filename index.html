@@ -276,6 +276,36 @@ nav{position:fixed;top:0;left:0;right:0;z-index:1000;background:rgba(5,10,14,0.9
 .char-detail-label{display:block;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:3px;color:var(--cyan-dim);text-transform:uppercase;margin-bottom:0.3rem;}
 .char-detail-val{font-size:0.95rem;color:var(--text-dim);font-weight:300;line-height:1.6;}
 .char-quote{font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text-dim);letter-spacing:1px;font-style:italic;margin-top:auto;padding-top:1rem;border-top:1px solid var(--border);opacity:0.8;}
+
+/* ── WORLD CARDS (Enemigos / Aliados / Lugares) ── */
+.world-view-wrap{padding:86px 1.5rem 4rem;max-width:1200px;margin:0 auto;position:relative;z-index:1;}
+.world-toolbar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:12px;margin-bottom:1.5rem;}
+.world-add-btn{font-family:'Share Tech Mono',monospace;font-size:12px;letter-spacing:2px;text-transform:uppercase;background:transparent;border:1px solid var(--cyan);color:var(--cyan);padding:7px 18px;cursor:pointer;transition:all 0.2s;}
+.world-add-btn:hover{background:rgba(0,245,255,0.07);box-shadow:var(--glow-cyan);}
+.world-card-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(260px,1fr));gap:14px;margin-bottom:2rem;}
+.world-card{background:var(--panel);border:1px solid var(--border);display:flex;flex-direction:column;transition:border-color 0.25s,box-shadow 0.25s;position:relative;}
+.world-card:hover{box-shadow:0 0 18px rgba(0,245,255,0.07);}
+.world-card-top{padding:14px 16px 10px;}
+.world-card-type{font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:3px;text-transform:uppercase;opacity:0.6;margin-bottom:4px;}
+.world-card-name{font-family:'Orbitron',monospace;font-size:1.05rem;font-weight:700;color:#fff;letter-spacing:2px;line-height:1.2;}
+.world-card-badge{display:inline-block;margin-top:6px;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:2px;text-transform:uppercase;border:1px solid;padding:2px 8px;}
+.world-card-divider{border:none;border-top:1px solid var(--border);margin:0 16px;}
+.world-card-body{padding:10px 16px;flex:1;font-size:0.9rem;color:var(--text-dim);font-weight:300;line-height:1.65;white-space:pre-wrap;word-break:break-word;}
+.world-card-actions{padding:8px 12px;display:flex;gap:8px;justify-content:flex-end;border-top:1px solid var(--border);}
+.world-card-btn{font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;background:transparent;border:1px solid;padding:3px 9px;cursor:pointer;transition:all 0.15s;}
+.world-empty{font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--text-dim);letter-spacing:2px;padding:2.5rem 0;text-align:center;opacity:0.5;}
+/* Modal */
+.world-modal-bg{display:none;position:fixed;inset:0;background:rgba(0,0,0,0.75);z-index:3000;align-items:center;justify-content:center;}
+.world-modal-bg.open{display:flex;}
+.world-modal{background:var(--panel);border:1px solid var(--border-bright);padding:24px;width:420px;max-width:95vw;max-height:90vh;overflow-y:auto;}
+.world-modal h3{font-family:'Orbitron',monospace;font-size:13px;font-weight:700;color:var(--cyan);letter-spacing:3px;margin-bottom:18px;}
+.world-modal label{display:block;font-family:'Share Tech Mono',monospace;font-size:9px;letter-spacing:3px;color:var(--cyan-dim);text-transform:uppercase;margin-bottom:5px;}
+.world-modal input,.world-modal textarea{width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text);font-family:'Share Tech Mono',monospace;font-size:13px;padding:8px 10px;outline:none;resize:vertical;margin-bottom:14px;transition:border-color 0.2s;}
+.world-modal input:focus,.world-modal textarea:focus{border-color:var(--border-bright);}
+.world-modal-actions{display:flex;gap:10px;justify-content:flex-end;margin-top:4px;}
+body.light .world-modal{background:var(--panel);}
+body.light .world-modal input,body.light .world-modal textarea{background:var(--panel2);color:var(--text);}
+@media(max-width:600px){.world-card-grid{grid-template-columns:1fr;}.world-view-wrap{padding:76px 1rem 3rem;}}
 footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:2rem;text-align:center;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;}
 footer span{color:var(--cyan-dim);}
 /* ── HAMBURGER MOBILE NAV ── */
@@ -324,6 +354,9 @@ body.light .mobile-menu a,body.light .mobile-menu button{border-bottom-color:rgb
     <li><a href="#" onclick="showView('personajes');return false;">⚔ Personajes</a></li>
     <li><a href="#" onclick="scrollSec('Bitacoras');return false;">Bitácoras</a></li>
     <li><a href="#" onclick="showTracker();return false;">⚡ Tracker</a></li>
+    <li><a href="#" onclick="showView('enemigos');return false;">☠ Enemigos</a></li>
+    <li><a href="#" onclick="showView('aliados');return false;">◎ Aliados</a></li>
+    <li><a href="#" onclick="showView('lugares');return false;">⬡ Lugares</a></li>
     <li id="navGMLink" style="display:none;"><a href="#" onclick="showView('gm');return false;">⬡ GM Panel</a></li>
   </ul>
   <div class="nav-right">
@@ -345,6 +378,9 @@ body.light .mobile-menu a,body.light .mobile-menu button{border-bottom-color:rgb
   <a href="#" onclick="showView('personajes');closeMobileMenu();return false;">⚔ Personajes</a>
   <a href="#" onclick="scrollSec('Bitacoras');closeMobileMenu();return false;">◎ Bitácoras</a>
   <a href="#" onclick="showTracker();closeMobileMenu();return false;">⚡ Tracker de Iniciativa</a>
+  <a href="#" onclick="showView('enemigos');closeMobileMenu();return false;">☠ Enemigos</a>
+  <a href="#" onclick="showView('aliados');closeMobileMenu();return false;">◎ Aliados</a>
+  <a href="#" onclick="showView('lugares');closeMobileMenu();return false;">⬡ Lugares</a>
   <a id="mobileGMLink" href="#" style="display:none;" onclick="showView('gm');closeMobileMenu();return false;">⬡ GM Panel</a>
   <div class="mob-divider"></div>
   <button onclick="toggleTheme();closeMobileMenu();" style="color:var(--text-dim);">☀ Cambiar Tema</button>
@@ -544,6 +580,71 @@ body.light .mobile-menu a,body.light .mobile-menu button{border-bottom-color:rgb
   <iframe id="trackerFrame" src="" style="width:100%;height:calc(100vh - 56px);border:none;display:block;"></iframe>
 </div>
 
+
+<!-- ENEMIGOS -->
+<div class="view" id="viewEnemigos">
+  <div class="world-view-wrap fadein">
+    <div class="section-label">Registro de Amenazas</div>
+    <h2 class="section-title">Enemigos <span class="hi">Activos</span></h2>
+    <div class="world-toolbar">
+      <div id="enemCount" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text-dim);letter-spacing:2px;"></div>
+      <button class="world-add-btn" onclick="openWorldModal('enemy')">+ Nuevo Enemigo</button>
+    </div>
+    <div class="world-card-grid" id="enemGrid"><div class="world-empty">// Sin registros</div></div>
+  </div>
+</div>
+
+<!-- ALIADOS -->
+<div class="view" id="viewAliados">
+  <div class="world-view-wrap fadein">
+    <div class="section-label">Red de Contactos</div>
+    <h2 class="section-title">Aliados <span class="hi" style="color:var(--green);">y Contactos</span></h2>
+    <div class="world-toolbar">
+      <div id="aliCount" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text-dim);letter-spacing:2px;"></div>
+      <button class="world-add-btn" style="border-color:var(--green);color:var(--green);" onclick="openWorldModal('ally')">+ Nuevo Aliado</button>
+    </div>
+    <div class="world-card-grid" id="aliGrid"><div class="world-empty">// Sin registros</div></div>
+  </div>
+</div>
+
+<!-- LUGARES -->
+<div class="view" id="viewLugares">
+  <div class="world-view-wrap fadein">
+    <div class="section-label">Cartografía Urbana</div>
+    <h2 class="section-title">Lugares <span class="hi" style="color:var(--amber);">y Distritos</span></h2>
+    <div class="world-toolbar">
+      <div id="lugCount" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text-dim);letter-spacing:2px;"></div>
+      <button class="world-add-btn" style="border-color:var(--amber);color:var(--amber);" onclick="openWorldModal('place')">+ Nuevo Lugar</button>
+    </div>
+    <div class="world-card-grid" id="lugGrid"><div class="world-empty">// Sin registros</div></div>
+  </div>
+</div>
+
+<!-- MODAL WORLD ENTRY -->
+<div class="world-modal-bg" id="worldModalBg" onclick="closeWorldModalIfBg(event)">
+  <div class="world-modal">
+    <h3 id="worldModalTitle">NUEVA ENTRADA</h3>
+    <input type="hidden" id="worldModalType" />
+    <input type="hidden" id="worldModalId" />
+    <div>
+      <label for="worldModalName">Nombre</label>
+      <input id="worldModalName" placeholder="Nombre..." />
+    </div>
+    <div id="worldModalDistrictWrap" style="display:none;">
+      <label for="worldModalDistrict">Distrito</label>
+      <input id="worldModalDistrict" placeholder="Ej: Night City, Sector 4..." />
+    </div>
+    <div>
+      <label for="worldModalDetails">Detalles</label>
+      <textarea id="worldModalDetails" rows="5" placeholder="Descripción, notas, historia..."></textarea>
+    </div>
+    <div class="world-modal-actions">
+      <button class="world-card-btn" style="border-color:var(--text-dim);color:var(--text-dim);" onclick="closeWorldModal()">Cancelar</button>
+      <button class="world-card-btn" id="worldModalSaveBtn" style="border-color:var(--cyan);color:var(--cyan);" onclick="saveWorldEntry()">◈ Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- GM PANEL -->
 <div class="view" id="viewGm">
   <div class="page-wide fadein">
@@ -638,6 +739,7 @@ async function afterLogin(){
     document.getElementById('addSesBtn')&&(document.getElementById('addSesBtn').style.display='block');
   }
   await loadSessions();
+  await loadWorldEntries();
   subscribeRT();
   showView('main');
 }
@@ -659,6 +761,7 @@ async function loadSessions(){
 function subscribeRT(){
   rtSub=sb.channel('portal')
     .on('postgres_changes',{event:'*',schema:'public',table:'sessions'},()=>loadSessions())
+    .on('postgres_changes',{event:'*',schema:'public',table:'world_entries'},()=>loadWorldEntries())
     .subscribe();
 }
 
@@ -774,6 +877,118 @@ function showTracker() {
   showView('tracker');
 }
 
+
+// ── WORLD ENTRIES (Supabase) ───────────────────────────────
+let worldData = { enemy:[], ally:[], place:[] };
+
+async function loadWorldEntries(){
+  const{data,error}=await sb.from('world_entries').select('*').order('created_at');
+  if(error){console.error('world_entries:',error);return;}
+  worldData={enemy:[],ally:[],place:[]};
+  (data||[]).forEach(e=>{
+    if(worldData[e.type]) worldData[e.type].push(e);
+  });
+  // Re-renderizar la vista activa si es una world view
+  const active=document.querySelector('.view.active');
+  if(active){
+    const id=active.id;
+    if(id==='viewEnemigos') renderWorldView('enemy');
+    else if(id==='viewAliados') renderWorldView('ally');
+    else if(id==='viewLugares') renderWorldView('place');
+  }
+}
+
+function renderWorldView(type){
+  const CFG={
+    enemy:{grid:'enemGrid',count:'enemCount',color:'var(--red)',  label:'AMENAZA'},
+    ally: {grid:'aliGrid', count:'aliCount', color:'var(--green)',label:'ALIADO'},
+    place:{grid:'lugGrid', count:'lugCount', color:'var(--amber)',label:'LUGAR'},
+  };
+  const cfg=CFG[type];
+  const grid=document.getElementById(cfg.grid);
+  const cnt=document.getElementById(cfg.count);
+  if(!grid)return;
+  const list=worldData[type]||[];
+  if(cnt) cnt.textContent=list.length+' entrada'+(list.length===1?'':'s')+' registrada'+(list.length===1?'':'s');
+  if(!list.length){grid.innerHTML='<div class="world-empty">// Sin registros</div>';return;}
+  grid.innerHTML=list.map(e=>{
+    const dist=e.district?'<div class="world-card-badge" style="border-color:'+cfg.color+'44;color:'+cfg.color+'">'+E(e.district)+'</div>':'';
+    return '<div class="world-card" style="border-color:'+cfg.color+'44;">'
+      +'<div class="world-card-top">'
+      +'<div class="world-card-type" style="color:'+cfg.color+'">// '+cfg.label+'</div>'
+      +'<div class="world-card-name">'+E(e.name)+'</div>'
+      +dist
+      +'</div>'
+      +'<hr class="world-card-divider">'
+      +'<div class="world-card-body">'+E(e.details||'Sin detalles.')+'</div>'
+      +'<div class="world-card-actions">'
+      +'<button class="world-card-btn" style="border-color:var(--cyan);color:var(--cyan);" onclick="openWorldModal(\''+type+'\','+e.id+')">✎ Editar</button>'
+      +'<button class="world-card-btn" style="border-color:var(--red);color:var(--red);" onclick="deleteWorldEntry('+e.id+',\''+type+'\')">✕</button>'
+      +'</div>'
+      +'</div>';
+  }).join('');
+}
+
+function openWorldModal(type, id){
+  const isNew=(id===undefined||id===null);
+  let entry={name:'',district:'',details:''};
+  if(!isNew){
+    const found=(worldData[type]||[]).find(e=>e.id===id);
+    if(found) entry=found;
+  }
+  document.getElementById('worldModalType').value=type;
+  document.getElementById('worldModalId').value=isNew?'':String(id);
+  document.getElementById('worldModalName').value=entry.name||'';
+  document.getElementById('worldModalDistrict').value=entry.district||'';
+  document.getElementById('worldModalDetails').value=entry.details||'';
+  document.getElementById('worldModalDistrictWrap').style.display=type==='place'?'block':'none';
+  const TITLES={enemy:'ENEMIGO',ally:'ALIADO',place:'LUGAR'};
+  document.getElementById('worldModalTitle').textContent=(isNew?'NUEVO ':'EDITAR ')+TITLES[type];
+  document.getElementById('worldModalBg').classList.add('open');
+  setTimeout(()=>document.getElementById('worldModalName').focus(),60);
+}
+function closeWorldModal(){document.getElementById('worldModalBg').classList.remove('open');}
+function closeWorldModalIfBg(e){if(e.target===document.getElementById('worldModalBg'))closeWorldModal();}
+
+async function saveWorldEntry(){
+  const type   =document.getElementById('worldModalType').value;
+  const idStr  =document.getElementById('worldModalId').value;
+  const name   =document.getElementById('worldModalName').value.trim();
+  const district=document.getElementById('worldModalDistrict').value.trim();
+  const details=document.getElementById('worldModalDetails').value.trim();
+  if(!name){document.getElementById('worldModalName').style.borderColor='var(--red)';return;}
+  document.getElementById('worldModalName').style.borderColor='';
+  const payload={type,name,details};
+  if(type==='place') payload.district=district;
+  let error;
+  if(idStr===''){
+    ({error}=await sb.from('world_entries').insert(payload));
+  } else {
+    ({error}=await sb.from('world_entries').update(payload).eq('id',parseInt(idStr)));
+  }
+  if(error){toast('Error: '+error.message,true);return;}
+  closeWorldModal();
+  await loadWorldEntries();
+  toast('Guardado');
+}
+
+async function deleteWorldEntry(id,type){
+  if(!confirm('¿Eliminar esta entrada?'))return;
+  const{error}=await sb.from('world_entries').delete().eq('id',id);
+  if(error){toast('Error: '+error.message,true);return;}
+  await loadWorldEntries();
+  renderWorldView(type);
+  toast('Eliminado');
+}
+
+// Patch showView para renderizar world views al navegar
+const _origShowView=showView;
+showView=function(n){
+  _origShowView(n);
+  if(n==='enemigos') renderWorldView('enemy');
+  else if(n==='aliados') renderWorldView('ally');
+  else if(n==='lugares') renderWorldView('place');
+};
 // ── THEME ─────────────────────────────────────────────────
 function toggleTheme(){
   const isLight=document.body.classList.toggle('light');
@@ -795,3 +1010,4 @@ function updateThemeBtn(isLight){
 </script>
 </body>
 </html>
+
