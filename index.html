@@ -315,6 +315,9 @@ body.light .mobile-menu a,body.light .mobile-menu button{border-bottom-color:rgb
 <div class="toast" id="toast"></div>
 
 <nav id="mainNav" style="display:none;">
+  <button class="nav-hamburger" id="navHamburger" onclick="toggleMobileMenu()" aria-label="Menú">
+    <span></span><span></span><span></span>
+  </button>
   <div class="nav-brand glitch" onclick="goHome()">TERMINAL <span>OVERDRIVE</span></div>
   <ul class="nav-links">
     <li><a href="#" onclick="goHome();return false;">Inicio</a></li>
@@ -331,9 +334,6 @@ body.light .mobile-menu a,body.light .mobile-menu button{border-bottom-color:rgb
     </button>
     <div class="nav-status"><div class="pulse"></div>EN LÍNEA</div>
     <button class="nav-logout" onclick="logout()">✕ Salir</button>
-    <button class="nav-hamburger" id="navHamburger" onclick="toggleMobileMenu()" aria-label="Menú">
-      <span></span><span></span><span></span>
-    </button>
   </div>
 </nav>
 
