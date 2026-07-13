@@ -18,13 +18,16 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
+  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
   <script type="text/babel">
-    const { useState, useMemo, useEffect, useRef } = React;
+    const { useState, useMemo, useEffect, useRef, useCallback } = React;
 
-    const LS_KEY    = "carbon2185_state";
-    const ME_KEY    = "carbon2185_me";
-    const IS_PLAYER = new URLSearchParams(window.location.search).get("view") === "player";
-    const IN_IFRAME = (() => { try { return window.self !== window.top; } catch(e) { return true; } })();
+    const LS_KEY      = "carbon2185_state";
+    const ME_KEY      = "carbon2185_me";
+    const ROOM_KEY    = "carbon2185_room";
+    const ROOM_PREFIX = "cb2185-";
+    const IS_PLAYER   = new URLSearchParams(window.location.search).get("view") === "player";
+    const IN_IFRAME   = (() => { try { return window.self !== window.top; } catch(e) { return true; } })();
 
     const PRESET_CONDITIONS = [
       { name:"Aturdido",     color:"#FFD700" }, { name:"Quemado",      color:"#FF4500" },
@@ -84,22 +87,86 @@
        PLAYER VIEW
     ══════════════════════════════════════ */
     function PlayerView() {
-      const [state,       setState]       = useState(() => loadState() || { characters:[], activeCharId:null, round:1 });
-      const [meId,        setMeId]        = useState(() => { if (IN_IFRAME) { localStorage.removeItem(ME_KEY); return null; } return localStorage.getItem(ME_KEY); });
+      /* ── Connection state ── */
+      const [connStatus, setConnStatus]   = useState('idle'); // idle | connecting | connected | error | lost
+      const [connError,  setConnError]    = useState('');
+      const [roomInput,  setRoomInput]    = useState(() => localStorage.getItem(ROOM_KEY) || '');
+      const connRef = useRef(null);
+      const peerRef = useRef(null);
+
+      /* ── Game state (received from GM via PeerJS) ── */
+      const [state, setState] = useState({ characters:[], activeCharId:null, round:1 });
+
+      /* ── Player identity ── */
+      const [meId,        setMeId]        = useState(() => localStorage.getItem(ME_KEY));
       const [initVal,     setInitVal]     = useState("");
       const [hpVal,       setHpVal]       = useState("");
       const [maxHpVal,    setMaxHpVal]    = useState("");
       const [editingInit, setEditingInit] = useState(false);
       const [editingHp,   setEditingHp]   = useState(false);
 
-      useEffect(() => {
-        const sync = () => { const n = loadState(); if (n) setState(n); };
-        const onStor = (e) => { if (e.key === LS_KEY) sync(); };
-        window.addEventListener("storage", onStor);
-        const poll = setInterval(sync, 800);
-        return () => { window.removeEventListener("storage", onStor); clearInterval(poll); };
+      /* ── Connect to GM ── */
+      const connectToGM = useCallback(() => {
+        const code = roomInput.trim().toUpperCase();
+        if (!code) return;
+        localStorage.setItem(ROOM_KEY, code);
+        setConnStatus('connecting');
+        setConnError('');
+
+        // Destroy previous peer if any
+        if (peerRef.current) { try { peerRef.current.destroy(); } catch(e) {} }
+
+        const peer = new Peer(); // random ID for player
+        peerRef.current = peer;
+
+        peer.on('open', () => {
+          const fullId = ROOM_PREFIX + code.toLowerCase();
+          const conn = peer.connect(fullId, { reliable: true });
+          connRef.current = conn;
+
+          conn.on('open', () => {
+            setConnStatus('connected');
+          });
+
+          conn.on('data', (msg) => {
+            if (msg.type === 'state') {
+              setState({
+                characters:   msg.characters   || [],
+                activeCharId: msg.activeCharId || null,
+                round:        msg.round        || 1,
+              });
+            }
+          });
+
+          conn.on('close', () => {
+            setConnStatus('lost');
+          });
+
+          conn.on('error', (err) => {
+            setConnStatus('error');
+            setConnError('Error en la conexión.');
+          });
+        });
+
+        peer.on('error', (err) => {
+          if (err.type === 'peer-unavailable') {
+            setConnError('Código incorrecto o el DJ aún no abrió su sesión.');
+          } else {
+            setConnError('Error: ' + (err.message || err.type));
+          }
+          setConnStatus('error');
+        });
+      }, [roomInput]);
+
+      /* ── Send update to GM ── */
+      const sendUpdate = useCallback((charId, updates) => {
+        const conn = connRef.current;
+        if (conn && conn.open) {
+          conn.send({ type: 'player_update', charId, updates });
+        }
       }, []);
 
+      /* ── Sync UI inputs when state arrives from GM ── */
       const myChar = state.characters.find(c => c.id === meId);
 
       useEffect(() => {
@@ -111,10 +178,15 @@
         }
       }, [myChar && myChar.id, myChar && myChar.initiative, myChar && myChar.hp, myChar && myChar.maxHp]);
 
+      /* ── Update helpers ── */
       const updateMe = (updates) => {
-        const cur = loadState();
-        if (!cur) return;
-        saveState({ ...cur, characters: cur.characters.map(c => c.id === meId ? { ...c, ...updates } : c) });
+        if (!meId) return;
+        // Optimistic local update
+        setState(prev => ({
+          ...prev,
+          characters: prev.characters.map(c => c.id === meId ? { ...c, ...updates } : c),
+        }));
+        sendUpdate(meId, updates);
       };
 
       const selectMe = (char) => {
@@ -155,14 +227,77 @@
       const activeChar = sorted.find(c => c.id === activeCharId) || null;
       const pcs        = sorted.filter(c => c.type === "PC");
 
-      /* — Selector screen — */
-      if (!meId || !myChar) {
+      /* ── Screen: Enter room code ── */
+      if (connStatus === 'idle' || connStatus === 'error' || connStatus === 'lost') {
         return (
           <div style={{ minHeight:"100vh", background:"#080b0f", color:"#b0c4b0", fontFamily:"'Courier New',monospace", display:"flex", flexDirection:"column" }}>
             {!IN_IFRAME && (
               <div style={{ background:"#050709", borderBottom:"1px solid #00FF4133", padding:"16px 32px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
                 <div style={{ color:"#00FF41", fontSize:18, fontWeight:"bold", letterSpacing:4 }}>{"◈"} CARBON 2185</div>
                 <span style={{ border:"1px solid #00FF4144", borderRadius:3, padding:"3px 10px", color:"#4a5a4a", fontSize:10, letterSpacing:2 }}>VISTA JUGADORES</span>
+              </div>
+            )}
+            <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"2rem" }}>
+              <div style={{ color:"#00BFFF", fontSize:11, letterSpacing:4, textTransform:"uppercase", marginBottom:8 }}>{">"} Conectar a sesión</div>
+              <div style={{ color:"#4a5a4a", fontSize:11, letterSpacing:1, marginBottom:28, textAlign:"center" }}>Ingresá el código de sala que te dio el DJ</div>
+
+              {connStatus === 'lost' && (
+                <div style={{ marginBottom:16, color:"#FF8C00", fontSize:11, letterSpacing:1, border:"1px solid #FF8C0033", borderRadius:4, padding:"8px 16px" }}>
+                  {"⚠"} Conexión perdida. Reconectate al DJ.
+                </div>
+              )}
+              {connStatus === 'error' && connError && (
+                <div style={{ marginBottom:16, color:"#FF4136", fontSize:11, letterSpacing:1, border:"1px solid #FF413633", borderRadius:4, padding:"8px 16px" }}>
+                  {"✕"} {connError}
+                </div>
+              )}
+
+              <div style={{ display:"flex", flexDirection:"column", gap:10, width:"100%", maxWidth:320 }}>
+                <input
+                  style={{ ...S.input, fontSize:22, textAlign:"center", letterSpacing:6, padding:"12px 8px", color:"#FFD700", borderColor:"#FFD70044" }}
+                  placeholder="ABC123"
+                  value={roomInput}
+                  maxLength={6}
+                  onChange={e => setRoomInput(e.target.value.toUpperCase())}
+                  onKeyDown={e => e.key === "Enter" && connectToGM()}
+                />
+                <button
+                  onClick={connectToGM}
+                  style={{ ...S.btn("#00FF41"), fontSize:13, padding:"10px", letterSpacing:2 }}>
+                  {"▷"} CONECTAR
+                </button>
+              </div>
+              <div style={{ marginTop:32, color:"#4a5a4a", fontSize:10, letterSpacing:2, textAlign:"center" }}>
+                El DJ ve el código en su pantalla de DJ.
+              </div>
+            </div>
+          </div>
+        );
+      }
+
+      /* ── Screen: Connecting spinner ── */
+      if (connStatus === 'connecting') {
+        return (
+          <div style={{ minHeight:"100vh", background:"#080b0f", color:"#b0c4b0", fontFamily:"'Courier New',monospace", display:"flex", alignItems:"center", justifyContent:"center" }}>
+            <div style={{ textAlign:"center" }}>
+              <div style={{ color:"#00FF41", fontSize:13, letterSpacing:4, marginBottom:8 }}>CONECTANDO...</div>
+              <div style={{ color:"#4a5a4a", fontSize:11, letterSpacing:2 }}>código {roomInput}</div>
+            </div>
+          </div>
+        );
+      }
+
+      /* ── Screen: Connected — choose character ── */
+      if (!meId || !myChar) {
+        return (
+          <div style={{ minHeight:"100vh", background:"#080b0f", color:"#b0c4b0", fontFamily:"'Courier New',monospace", display:"flex", flexDirection:"column" }}>
+            {!IN_IFRAME && (
+              <div style={{ background:"#050709", borderBottom:"1px solid #00FF4133", padding:"16px 32px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                <div style={{ color:"#00FF41", fontSize:18, fontWeight:"bold", letterSpacing:4 }}>{"◈"} CARBON 2185</div>
+                <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                  <span style={{ color:"#00FF41", fontSize:10, letterSpacing:2 }}>{"●"} CONECTADO</span>
+                  <button onClick={() => { setConnStatus('idle'); setMeId(null); }} style={{ ...S.btnSm("#4a5a4a"), fontSize:10 }}>{"↩"} Salir</button>
+                </div>
               </div>
             )}
             <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"2rem" }}>
@@ -185,7 +320,7 @@
         );
       }
 
-      /* — Main player view — */
+      /* ── Screen: Main player view ── */
       const hpPct   = myChar.maxHp ? Math.max(0, Math.min(100, (myChar.hp / myChar.maxHp) * 100)) : 0;
       const hpColor = hpPct > 50 ? "#00FF41" : hpPct > 25 ? "#FFD700" : "#FF4136";
       const myEmoji = hpEmoji(myChar);
@@ -320,7 +455,7 @@
           </div>
 
           <div style={{ borderTop:"1px solid #00FF4111", padding:"10px 24px", color:"#4a5a4a", fontSize:10, letterSpacing:2, textAlign:"center" }}>
-            CARBON 2185 // INITIATIVE TRACKER // SYNC AUTOMATICO
+            CARBON 2185 // INITIATIVE TRACKER // P2P SYNC
           </div>
         </div>
       );
@@ -477,42 +612,86 @@
        GM VIEW
     ══════════════════════════════════════ */
     function GMView() {
-      const [characters,   setCharacters]   = useState([]);
-      const [activeCharId, setActiveCharId] = useState(null);
-      const [round,        setRound]        = useState(1);
+      /* ── Game state ── */
+      const [characters,   setCharacters]   = useState(() => { const s = loadState(); return s?.characters || []; });
+      const [activeCharId, setActiveCharId] = useState(() => { const s = loadState(); return s?.activeCharId || null; });
+      const [round,        setRound]        = useState(() => { const s = loadState(); return s?.round || 1; });
       const [form,         setForm]         = useState({ name:"", type:"PC", initiative:"", hp:"10" });
       const [condModal,    setCondModal]    = useState(null);
       const [condOpts,     setCondOpts]     = useState({ duration:"1", reducesAt:"end" });
       const [customCond,   setCustomCond]   = useState({ name:"", color:"#00FF41" });
 
-      const sorted     = useMemo(() => [...characters].sort((a,b) => b.initiative-a.initiative), [characters]);
-      const activeChar = sorted.find(c => c.id === activeCharId) || null;
+      /* ── PeerJS state ── */
+      const [roomCode,       setRoomCode]       = useState(null);  // 6-char display code (uppercase)
+      const [peerStatus,     setPeerStatus]     = useState('connecting'); // connecting | ready | error
+      const [connectedCount, setConnectedCount] = useState(0);
+      const [copied,         setCopied]         = useState(false);
+      const connectionsRef = useRef([]);
+      const stateRef       = useRef({ characters, activeCharId, round });
 
-      /* Merge player-side changes (initiative, hp, maxHp) */
+      /* Keep stateRef current so PeerJS callbacks always see latest state */
       useEffect(() => {
-        const onStorage = (e) => {
-          if (e.key !== LS_KEY) return;
-          const fresh = loadState();
-          if (!fresh || !fresh.characters) return;
-          setCharacters(prev => {
-            let changed = false;
-            const merged = prev.map(c => {
-              const fc = fresh.characters.find(x => x.id === c.id);
-              if (!fc) return c;
-              if (fc.initiative !== c.initiative || fc.hp !== c.hp || fc.maxHp !== c.maxHp) {
-                changed = true;
-                return { ...c, initiative:fc.initiative, hp:fc.hp, maxHp:fc.maxHp };
-              }
-              return c;
-            });
-            return changed ? merged : prev;
+        stateRef.current = { characters, activeCharId, round };
+      }, [characters, activeCharId, round]);
+
+      /* ── Initialize PeerJS on mount ── */
+      useEffect(() => {
+        const shortCode = Math.random().toString(36).substr(2, 6).toUpperCase();
+        const fullId    = ROOM_PREFIX + shortCode.toLowerCase();
+        const peer      = new Peer(fullId);
+
+        peer.on('open', () => {
+          setRoomCode(shortCode);
+          setPeerStatus('ready');
+        });
+
+        peer.on('error', (err) => {
+          console.error('PeerJS GM error:', err);
+          setPeerStatus('error');
+        });
+
+        peer.on('connection', (conn) => {
+          conn.on('open', () => {
+            connectionsRef.current.push(conn);
+            setConnectedCount(n => n + 1);
+            // Send full current state to newly connected player
+            conn.send({ type: 'state', ...stateRef.current });
           });
-        };
-        window.addEventListener("storage", onStorage);
-        return () => window.removeEventListener("storage", onStorage);
+
+          conn.on('data', (msg) => {
+            if (msg.type === 'player_update') {
+              const { charId, updates } = msg;
+              setCharacters(prev => prev.map(c =>
+                c.id === charId ? { ...c, ...updates } : c
+              ));
+            }
+          });
+
+          conn.on('close', () => {
+            connectionsRef.current = connectionsRef.current.filter(c => c !== conn);
+            setConnectedCount(n => Math.max(0, n - 1));
+          });
+
+          conn.on('error', () => {
+            connectionsRef.current = connectionsRef.current.filter(c => c !== conn);
+            setConnectedCount(n => Math.max(0, n - 1));
+          });
+        });
+
+        return () => peer.destroy();
       }, []);
 
-      useEffect(() => { saveState({ characters, activeCharId, round }); }, [characters, activeCharId, round]);
+      /* ── Broadcast + save on any state change ── */
+      useEffect(() => {
+        const snapshot = { characters, activeCharId, round };
+        saveState(snapshot);
+        connectionsRef.current.forEach(conn => {
+          try { if (conn.open) conn.send({ type: 'state', ...snapshot }); } catch(e) {}
+        });
+      }, [characters, activeCharId, round]);
+
+      const sorted     = useMemo(() => [...characters].sort((a,b) => b.initiative-a.initiative), [characters]);
+      const activeChar = sorted.find(c => c.id === activeCharId) || null;
 
       useEffect(() => {
         if (activeCharId && !characters.find(c => c.id === activeCharId)) {
@@ -596,14 +775,43 @@
 
       const openPlayerView = () => window.open(window.location.href.split("?")[0]+"?view=player", "_blank");
 
+      const copyCode = () => {
+        if (!roomCode) return;
+        navigator.clipboard.writeText(roomCode).then(() => {
+          setCopied(true);
+          setTimeout(() => setCopied(false), 2000);
+        });
+      };
+
       return (
         <div style={{ minHeight:"100vh", background:"#080b0f", color:"#b0c4b0", fontFamily:"'Courier New',monospace", fontSize:14, paddingBottom:60 }}>
 
-          <header style={{ background:"#050709", borderBottom:"1px solid #00FF4133", padding:"14px 24px", display:IN_IFRAME?"none":"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:100 }}>
+          <header style={{ background:"#050709", borderBottom:"1px solid #00FF4133", padding:"14px 24px", display:IN_IFRAME?"none":"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:100, flexWrap:"wrap", gap:8 }}>
             <h1 style={{ color:"#00FF41", fontSize:20, fontWeight:"bold", letterSpacing:4, margin:0 }}>{"◈"} CARBON 2185 // DJ</h1>
-            <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+            <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
               {activeChar && <span style={{ color:"#00FF41", fontSize:11, letterSpacing:1 }}>{"▶"} {activeChar.name}</span>}
               <span style={{ background:"#0a1a0a", border:"1px solid #00FF4155", borderRadius:4, padding:"4px 12px", color:"#00FF41", fontSize:12, letterSpacing:2 }}>RONDA {String(round).padStart(3,"0")}</span>
+
+              {/* Room code badge */}
+              {peerStatus === 'ready' && roomCode ? (
+                <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+                  <div style={{ background:"#0a0020", border:"1px solid #FFD70066", borderRadius:4, padding:"4px 12px", display:"flex", alignItems:"center", gap:8 }}>
+                    <span style={{ color:"#4a5a4a", fontSize:9, letterSpacing:2 }}>SALA</span>
+                    <span style={{ color:"#FFD700", fontSize:16, fontWeight:"bold", letterSpacing:4 }}>{roomCode}</span>
+                    <span style={{ color:connectedCount > 0 ? "#00FF41" : "#4a5a4a", fontSize:10, letterSpacing:1 }}>
+                      {"●"} {connectedCount} jugador{connectedCount !== 1 ? "es" : ""}
+                    </span>
+                  </div>
+                  <button onClick={copyCode} style={{ ...S.btn(copied ? "#00FF41" : "#FFD700"), fontSize:10, padding:"4px 10px" }}>
+                    {copied ? "✓ COPIADO" : "COPIAR"}
+                  </button>
+                </div>
+              ) : peerStatus === 'connecting' ? (
+                <span style={{ color:"#4a5a4a", fontSize:10, letterSpacing:2 }}>SALA: CONECTANDO...</span>
+              ) : (
+                <span style={{ color:"#FF4136", fontSize:10, letterSpacing:2 }}>SALA: ERROR</span>
+              )}
+
               <button style={{ ...S.btn("#FF00FF"), fontSize:11, padding:"5px 14px" }} onClick={openPlayerView}>{"📺"} VISTA JUGADORES</button>
             </div>
           </header>
@@ -661,12 +869,37 @@
                 <button style={{ ...S.btn("#00BFFF"), width:"100%", padding:"8px", fontSize:12, letterSpacing:1 }} onClick={addCharacter}>+ ANADIR AL COMBATE</button>
               </div>
 
-              <div style={{ ...S.card, borderColor:"#FF00FF33" }}>
-                <div style={{ ...S.sec, color:"#FF00FF" }}>&mdash; VISTA JUGADORES &mdash;</div>
-                <div style={{ color:"#4a5a4a", fontSize:11, lineHeight:1.7, marginBottom:12 }}>
-                  Abre la pantalla de jugadores. Cada jugador elige su PJ e ingresa iniciativa y HP.
-                </div>
-                <button style={{ ...S.btn("#FF00FF"), width:"100%", padding:"7px", fontSize:11 }} onClick={openPlayerView}>{"📺"} ABRIR VISTA JUGADORES</button>
+              {/* Room code panel */}
+              <div style={{ ...S.card, borderColor:"#FFD70033", background:"#0a0a14" }}>
+                <div style={{ ...S.sec, color:"#FFD700" }}>&mdash; CÓDIGO DE SALA &mdash;</div>
+                {peerStatus === 'ready' && roomCode ? (
+                  <>
+                    <div style={{ textAlign:"center", marginBottom:14 }}>
+                      <div style={{ color:"#FFD700", fontSize:36, fontWeight:"bold", letterSpacing:10, padding:"10px 0" }}>{roomCode}</div>
+                      <div style={{ color:"#4a5a4a", fontSize:10, letterSpacing:2 }}>Los jugadores ingresan este código en la vista jugadores</div>
+                    </div>
+                    <div style={{ display:"flex", gap:8 }}>
+                      <button style={{ ...S.btn("#FFD700"), flex:1, padding:"7px", fontSize:11 }} onClick={copyCode}>
+                        {copied ? "✓ COPIADO" : "COPIAR CÓDIGO"}
+                      </button>
+                      <button style={{ ...S.btn("#FF00FF"), flex:1, padding:"7px", fontSize:11 }} onClick={openPlayerView}>
+                        {"📺"} ABRIR VISTA
+                      </button>
+                    </div>
+                    <div style={{ marginTop:12, display:"flex", alignItems:"center", gap:8 }}>
+                      <div style={{ width:8, height:8, borderRadius:"50%", background:connectedCount > 0 ? "#00FF41" : "#4a5a4a", flexShrink:0 }} />
+                      <span style={{ color:connectedCount > 0 ? "#00FF41" : "#4a5a4a", fontSize:11, letterSpacing:1 }}>
+                        {connectedCount} jugador{connectedCount !== 1 ? "es" : ""} conectado{connectedCount !== 1 ? "s" : ""}
+                      </span>
+                    </div>
+                  </>
+                ) : peerStatus === 'connecting' ? (
+                  <div style={{ color:"#4a5a4a", fontSize:11, letterSpacing:2, textAlign:"center", padding:"10px 0" }}>GENERANDO SALA...</div>
+                ) : (
+                  <div style={{ color:"#FF4136", fontSize:11, letterSpacing:1, padding:"8px 0" }}>
+                    Error al crear la sala. Recargá la página.
+                  </div>
+                )}
               </div>
 
               <div style={S.card}>
