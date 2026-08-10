@@ -2,15 +2,49 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0" />
+  <!-- Anti-caché: el browser siempre descarga la versión más nueva -->
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <title>Carbon 2185 — Initiative Tracker</title>
   <style>
     * { margin: 0; padding: 0; box-sizing: border-box; }
-    body { background: #080b0f; }
+    body { background: #080b0f; -webkit-text-size-adjust: 100%; }
     #root { min-height: 100vh; }
     input[type=number]::-webkit-inner-spin-button,
     input[type=number]::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
     input[type=number] { -moz-appearance: textfield; }
+
+    /* Responsive: mobile-first */
+    .player-stats-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 520px) {
+      .player-stats-grid { grid-template-columns: 1fr; }
+    }
+    .init-controls {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .hp-controls {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      margin-bottom: 8px;
+      flex-wrap: wrap;
+    }
+    @media (max-width: 360px) {
+      .init-controls input, .hp-controls input { font-size: 18px !important; }
+    }
+    /* Botones más grandes en touch */
+    @media (hover: none) {
+      button { min-height: 40px; }
+    }
   </style>
 </head>
 <body>
@@ -18,16 +52,47 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.2/babel.min.js"></script>
-  <script src="https://unpkg.com/peerjs@1.5.4/dist/peerjs.min.js"></script>
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/10.12.0/firebase-database-compat.js"></script>
+  <script>
+    try {
+      firebase.initializeApp({
+        apiKey: "AIzaSyBVxYGf0QSSxJf7ALfcA9UXFD6qBapYxL8",
+        authDomain: "carbon2185-5e1c8.firebaseapp.com",
+        databaseURL: "https://carbon2185-5e1c8-default-rtdb.firebaseio.com",
+        projectId: "carbon2185-5e1c8",
+        storageBucket: "carbon2185-5e1c8.firebasestorage.app",
+        messagingSenderId: "663307437997",
+        appId: "1:663307437997:web:687efdc7719bce3914c324"
+      });
+      window.db = firebase.database();
+      window.firebaseOk = true;
+    } catch(e) {
+      console.error("Firebase init error:", e);
+      window.firebaseOk = false;
+    }
+  </script>
+
   <script type="text/babel">
     const { useState, useMemo, useEffect, useRef, useCallback } = React;
 
-    const LS_KEY      = "carbon2185_state";
-    const ME_KEY      = "carbon2185_me";
-    const ROOM_KEY    = "carbon2185_room";
-    const ROOM_PREFIX = "cb2185-";
-    const IS_PLAYER   = new URLSearchParams(window.location.search).get("view") === "player";
-    const IN_IFRAME   = (() => { try { return window.self !== window.top; } catch(e) { return true; } })();
+    const VERSION  = "2.2";
+    const ME_KEY   = "carbon2185_me_v2";   // v2 fuerza reset de identidad vieja
+    const ROOM_KEY = "carbon2185_room_v2"; // v2 fuerza reset de sala vieja (PeerJS)
+    const IS_PLAYER = new URLSearchParams(window.location.search).get("view") === "player";
+    const IN_IFRAME = (() => { try { return window.self !== window.top; } catch(e) { return true; } })();
+    const CONNECT_TIMEOUT_MS = 12000; // 12 segundos máximo para conectar
+
+    const generateCode = () => {
+      const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+      let c = '';
+      for (let i = 0; i < 6; i++) c += chars[Math.floor(Math.random() * chars.length)];
+      return c;
+    };
+
+    const uid = () => Math.random().toString(36).substr(2, 9);
 
     const PRESET_CONDITIONS = [
       { name:"Aturdido",     color:"#FFD700" }, { name:"Quemado",      color:"#FF4500" },
@@ -37,24 +102,15 @@
       { name:"EMP",          color:"#FF8C00" }, { name:"Infectado",    color:"#7FFF00" },
     ];
 
-    const NEON = {
-      green:"#00FF41", cyan:"#00BFFF", magenta:"#FF00FF",
-      gold:"#FFD700",  red:"#FF4136",  orange:"#FF8C00",
-      bg:"#080b0f",    bgCard:"#0d1117", bgInput:"#111820",
-      text:"#b0c4b0",  dim:"#4a5a4a",
-    };
-
     const S = {
-      btn:   (c) => ({ background:"transparent", border:"1px solid "+c, color:c, fontFamily:"inherit", fontSize:12, letterSpacing:1, padding:"5px 12px", borderRadius:3, cursor:"pointer", transition:"all 0.15s" }),
-      btnSm: (c) => ({ background:"transparent", border:"1px solid "+c+"55", color:c, fontFamily:"inherit", fontSize:11, padding:"2px 7px", borderRadius:3, cursor:"pointer", lineHeight:"16px" }),
-      input: { background:"#111820", border:"1px solid #00FF4133", borderRadius:3, color:"#00FF41", fontFamily:"inherit", fontSize:13, padding:"5px 8px", outline:"none", width:"100%", boxSizing:"border-box" },
-      select:{ background:"#111820", border:"1px solid #00FF4133", borderRadius:3, color:"#00FF41", fontFamily:"inherit", fontSize:13, padding:"5px 8px", outline:"none", cursor:"pointer" },
-      tag:   (c) => ({ display:"inline-flex", alignItems:"center", gap:4, background:c+"18", border:"1px solid "+c+"66", borderRadius:3, color:c, fontSize:10, letterSpacing:1, padding:"1px 6px", marginRight:4, marginBottom:3, whiteSpace:"nowrap" }),
+      btn:   (c) => ({ background:"transparent", border:"1px solid "+c, color:c, fontFamily:"inherit", fontSize:12, letterSpacing:1, padding:"6px 14px", borderRadius:3, cursor:"pointer", transition:"all 0.15s", touchAction:"manipulation" }),
+      btnSm: (c) => ({ background:"transparent", border:"1px solid "+c+"55", color:c, fontFamily:"inherit", fontSize:11, padding:"3px 8px", borderRadius:3, cursor:"pointer", lineHeight:"18px", touchAction:"manipulation" }),
+      input: { background:"#111820", border:"1px solid #00FF4133", borderRadius:3, color:"#00FF41", fontFamily:"inherit", fontSize:13, padding:"6px 8px", outline:"none", width:"100%", boxSizing:"border-box" },
+      select:{ background:"#111820", border:"1px solid #00FF4133", borderRadius:3, color:"#00FF41", fontFamily:"inherit", fontSize:13, padding:"6px 8px", outline:"none", cursor:"pointer" },
+      tag:   (c) => ({ display:"inline-flex", alignItems:"center", gap:4, background:c+"18", border:"1px solid "+c+"66", borderRadius:3, color:c, fontSize:10, letterSpacing:1, padding:"2px 6px", marginRight:4, marginBottom:3, whiteSpace:"nowrap" }),
       card:  { background:"#0d1117", border:"1px solid #00FF4133", borderRadius:6, padding:16, marginBottom:16 },
       sec:   { color:"#00BFFF", fontSize:11, letterSpacing:3, textTransform:"uppercase", marginBottom:12, borderBottom:"1px solid #00BFFF22", paddingBottom:6 },
     };
-
-    const uid = () => Math.random().toString(36).substr(2, 9);
 
     const makeCharacter = (name, type, initiative, hp) => ({
       id: uid(), name: name.trim(), type,
@@ -70,9 +126,6 @@
       reducesAt,
     });
 
-    const loadState = () => { try { return JSON.parse(localStorage.getItem(LS_KEY)) || null; } catch(e) { return null; } };
-    const saveState = (s) => localStorage.setItem(LS_KEY, JSON.stringify(s));
-
     const hpEmoji = (char) => {
       if (char.hp === null || char.hp === undefined || !char.maxHp) return null;
       const pct = (char.hp / char.maxHp) * 100;
@@ -83,121 +136,156 @@
       return           { icon:"😊", title:"Sin dano significativo" };
     };
 
+    /* ── Firebase unavailable screen ── */
+    function FirebaseError() {
+      return (
+        <div style={{ minHeight:"100vh", background:"#080b0f", color:"#FF4136", fontFamily:"'Courier New',monospace", display:"flex", alignItems:"center", justifyContent:"center", padding:"2rem", textAlign:"center" }}>
+          <div>
+            <div style={{ fontSize:16, letterSpacing:2, marginBottom:12 }}>ERROR DE CONEXIÓN</div>
+            <div style={{ color:"#4a5a4a", fontSize:12, letterSpacing:1 }}>No se pudo cargar Firebase. Verificá tu conexión a internet y recargá la página.</div>
+            <button style={{ ...S.btn("#FF4136"), marginTop:20 }} onClick={() => window.location.reload()}>↺ Recargar</button>
+          </div>
+        </div>
+      );
+    }
+
     /* ══════════════════════════════════════
        PLAYER VIEW
     ══════════════════════════════════════ */
     function PlayerView() {
-      /* ── Connection state ── */
-      const [connStatus, setConnStatus]   = useState('idle'); // idle | connecting | connected | error | lost
-      const [connError,  setConnError]    = useState('');
-      const [roomInput,  setRoomInput]    = useState(() => localStorage.getItem(ROOM_KEY) || '');
-      const connRef = useRef(null);
-      const peerRef = useRef(null);
+      const playerUid = useRef(uid());
 
-      /* ── Game state (received from GM via PeerJS) ── */
+      /* ── Connection state ── */
+      const [connStatus, setConnStatus] = useState('idle');
+      const [connError,  setConnError]  = useState('');
+      const [roomInput,  setRoomInput]  = useState('');
+      const roomCodeRef  = useRef('');
+      const listenerRef  = useRef(null);
+      const presenceRef  = useRef(null);
+      const timeoutRef   = useRef(null);
+
+      /* ── Game state ── */
       const [state, setState] = useState({ characters:[], activeCharId:null, round:1 });
 
       /* ── Player identity ── */
       const [meId,        setMeId]        = useState(() => localStorage.getItem(ME_KEY));
-      const [initVal,     setInitVal]     = useState("");
-      const [hpVal,       setHpVal]       = useState("");
-      const [maxHpVal,    setMaxHpVal]    = useState("");
+      const [initVal,     setInitVal]     = useState('');
+      const [hpVal,       setHpVal]       = useState('');
+      const [maxHpVal,    setMaxHpVal]    = useState('');
       const [editingInit, setEditingInit] = useState(false);
       const [editingHp,   setEditingHp]   = useState(false);
 
-      /* ── Connect to GM ── */
-      const connectToGM = useCallback(() => {
-        const code = roomInput.trim().toUpperCase();
-        if (!code) return;
-        localStorage.setItem(ROOM_KEY, code);
-        setConnStatus('connecting');
-        setConnError('');
-
-        // Destroy previous peer if any
-        if (peerRef.current) { try { peerRef.current.destroy(); } catch(e) {} }
-
-        const peer = new Peer(); // random ID for player
-        peerRef.current = peer;
-
-        peer.on('open', () => {
-          const fullId = ROOM_PREFIX + code.toLowerCase();
-          const conn = peer.connect(fullId, { reliable: true });
-          connRef.current = conn;
-
-          conn.on('open', () => {
-            setConnStatus('connected');
-          });
-
-          conn.on('data', (msg) => {
-            if (msg.type === 'state') {
-              setState({
-                characters:   msg.characters   || [],
-                activeCharId: msg.activeCharId || null,
-                round:        msg.round        || 1,
-              });
-            }
-          });
-
-          conn.on('close', () => {
-            setConnStatus('lost');
-          });
-
-          conn.on('error', (err) => {
-            setConnStatus('error');
-            setConnError('Error en la conexión.');
-          });
-        });
-
-        peer.on('error', (err) => {
-          if (err.type === 'peer-unavailable') {
-            setConnError('Código incorrecto o el DJ aún no abrió su sesión.');
-          } else {
-            setConnError('Error: ' + (err.message || err.type));
-          }
-          setConnStatus('error');
-        });
-      }, [roomInput]);
-
-      /* ── Send update to GM ── */
-      const sendUpdate = useCallback((charId, updates) => {
-        const conn = connRef.current;
-        if (conn && conn.open) {
-          conn.send({ type: 'player_update', charId, updates });
+      /* ── Auto-reconnect con sala guardada ── */
+      useEffect(() => {
+        const saved = localStorage.getItem(ROOM_KEY);
+        if (saved) {
+          setRoomInput(saved);
+          connectToRoom(saved);
         }
       }, []);
 
-      /* ── Sync UI inputs when state arrives from GM ── */
+      /* ── Timeout: si queda trabado conectando, mostrar error ── */
+      useEffect(() => {
+        if (connStatus !== 'connecting') {
+          clearTimeout(timeoutRef.current);
+          return;
+        }
+        timeoutRef.current = setTimeout(() => {
+          setConnStatus('error');
+          setConnError('Tiempo de conexión agotado. Verificá el código e intentá de nuevo.');
+          if (listenerRef.current) listenerRef.current.off('value');
+        }, CONNECT_TIMEOUT_MS);
+        return () => clearTimeout(timeoutRef.current);
+      }, [connStatus]);
+
+      /* ── Cleanup ── */
+      useEffect(() => {
+        return () => {
+          clearTimeout(timeoutRef.current);
+          if (listenerRef.current) listenerRef.current.off('value');
+          if (presenceRef.current) presenceRef.current.remove();
+        };
+      }, []);
+
+      const limpiarDatos = () => {
+        localStorage.removeItem(ROOM_KEY);
+        localStorage.removeItem(ME_KEY);
+        setRoomInput('');
+        setConnError('');
+        setConnStatus('idle');
+        setMeId(null);
+      };
+
+      /* ── Conectar a sala ── */
+      const connectToRoom = (code) => {
+        const upper = (code || '').trim().toUpperCase();
+        if (!upper || upper.length < 4) return;
+
+        setConnStatus('connecting');
+        setConnError('');
+
+        if (listenerRef.current) listenerRef.current.off('value');
+        if (presenceRef.current) presenceRef.current.remove();
+
+        const stateRef = window.db.ref('rooms/' + upper + '/state');
+
+        stateRef.once('value', (snap) => {
+          if (!snap.exists()) {
+            setConnStatus('error');
+            setConnError('Sala no encontrada. Pedile el código al DJ — tiene que tener el tracker abierto.');
+            localStorage.removeItem(ROOM_KEY);
+            return;
+          }
+
+          const initial = snap.val();
+          if (initial) setState(initial);
+
+          stateRef.on('value', (s) => {
+            const val = s.val();
+            if (val) setState(val);
+          });
+          listenerRef.current = stateRef;
+
+          const pRef = window.db.ref('rooms/' + upper + '/presence/' + playerUid.current);
+          pRef.set(true);
+          pRef.onDisconnect().remove();
+          presenceRef.current = pRef;
+
+          roomCodeRef.current = upper;
+          localStorage.setItem(ROOM_KEY, upper);
+          setConnStatus('connected');
+
+        }, (err) => {
+          setConnStatus('error');
+          setConnError('Error al conectar. Revisá tu internet y reintentá.');
+          console.error('Firebase connect error:', err);
+        });
+      };
+
+      const sendUpdate = useCallback((charId, updates) => {
+        if (!roomCodeRef.current) return;
+        window.db.ref('rooms/' + roomCodeRef.current + '/playerUpdates/' + charId).update(updates);
+      }, []);
+
       const myChar = state.characters.find(c => c.id === meId);
 
       useEffect(() => {
         if (!myChar) return;
         if (!editingInit) setInitVal(String(myChar.initiative ?? 0));
         if (!editingHp) {
-          setHpVal(myChar.hp !== null ? String(myChar.hp) : "");
-          setMaxHpVal(myChar.maxHp !== null ? String(myChar.maxHp) : "");
+          setHpVal(myChar.hp !== null ? String(myChar.hp) : '');
+          setMaxHpVal(myChar.maxHp !== null ? String(myChar.maxHp) : '');
         }
       }, [myChar && myChar.id, myChar && myChar.initiative, myChar && myChar.hp, myChar && myChar.maxHp]);
 
-      /* ── Update helpers ── */
       const updateMe = (updates) => {
         if (!meId) return;
-        // Optimistic local update
-        setState(prev => ({
-          ...prev,
-          characters: prev.characters.map(c => c.id === meId ? { ...c, ...updates } : c),
-        }));
+        setState(prev => ({ ...prev, characters: prev.characters.map(c => c.id === meId ? { ...c, ...updates } : c) }));
         sendUpdate(meId, updates);
       };
 
-      const selectMe = (char) => {
-        localStorage.setItem(ME_KEY, char.id);
-        setMeId(char.id);
-        setInitVal(String(char.initiative ?? 0));
-        setHpVal(char.hp !== null ? String(char.hp) : "");
-        setMaxHpVal(char.maxHp !== null ? String(char.maxHp) : "");
-      };
-
-      const clearMe = () => { localStorage.removeItem(ME_KEY); setMeId(null); };
+      const selectMe = (char) => { localStorage.setItem(ME_KEY, char.id); setMeId(char.id); };
+      const clearMe  = () => { localStorage.removeItem(ME_KEY); setMeId(null); };
 
       const commitInit = () => {
         const v = parseInt(initVal) || 0;
@@ -209,8 +297,7 @@
       const commitHP = () => {
         const maxHp = parseInt(maxHpVal) || 10;
         const hp    = Math.max(0, Math.min(maxHp, parseInt(hpVal) || 0));
-        setHpVal(String(hp));
-        setMaxHpVal(String(maxHp));
+        setHpVal(String(hp)); setMaxHpVal(String(maxHp));
         updateMe({ hp, maxHp });
         setEditingHp(false);
       };
@@ -225,192 +312,190 @@
       const { characters, activeCharId, round } = state;
       const sorted     = [...characters].sort((a, b) => b.initiative - a.initiative);
       const activeChar = sorted.find(c => c.id === activeCharId) || null;
-      const pcs        = sorted.filter(c => c.type === "PC");
+      const pcs        = sorted.filter(c => c.type === 'PC');
 
-      /* ── Screen: Enter room code ── */
-      if (connStatus === 'idle' || connStatus === 'error' || connStatus === 'lost') {
+      /* ── Pantalla: ingresar código ── */
+      if (connStatus === 'idle' || connStatus === 'error') {
         return (
           <div style={{ minHeight:"100vh", background:"#080b0f", color:"#b0c4b0", fontFamily:"'Courier New',monospace", display:"flex", flexDirection:"column" }}>
             {!IN_IFRAME && (
-              <div style={{ background:"#050709", borderBottom:"1px solid #00FF4133", padding:"16px 32px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                <div style={{ color:"#00FF41", fontSize:18, fontWeight:"bold", letterSpacing:4 }}>{"◈"} CARBON 2185</div>
+              <div style={{ background:"#050709", borderBottom:"1px solid #00FF4133", padding:"14px 24px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                <div style={{ color:"#00FF41", fontSize:16, fontWeight:"bold", letterSpacing:3 }}>{"◈"} CARBON 2185</div>
                 <span style={{ border:"1px solid #00FF4144", borderRadius:3, padding:"3px 10px", color:"#4a5a4a", fontSize:10, letterSpacing:2 }}>VISTA JUGADORES</span>
               </div>
             )}
             <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"2rem" }}>
               <div style={{ color:"#00BFFF", fontSize:11, letterSpacing:4, textTransform:"uppercase", marginBottom:8 }}>{">"} Conectar a sesión</div>
-              <div style={{ color:"#4a5a4a", fontSize:11, letterSpacing:1, marginBottom:28, textAlign:"center" }}>Ingresá el código de sala que te dio el DJ</div>
+              <div style={{ color:"#4a5a4a", fontSize:12, letterSpacing:1, marginBottom:28, textAlign:"center" }}>Ingresá el código que te dio el DJ</div>
 
-              {connStatus === 'lost' && (
-                <div style={{ marginBottom:16, color:"#FF8C00", fontSize:11, letterSpacing:1, border:"1px solid #FF8C0033", borderRadius:4, padding:"8px 16px" }}>
-                  {"⚠"} Conexión perdida. Reconectate al DJ.
-                </div>
-              )}
-              {connStatus === 'error' && connError && (
-                <div style={{ marginBottom:16, color:"#FF4136", fontSize:11, letterSpacing:1, border:"1px solid #FF413633", borderRadius:4, padding:"8px 16px" }}>
+              {connStatus === 'error' && (
+                <div style={{ marginBottom:16, color:"#FF4136", fontSize:12, border:"1px solid #FF413633", borderRadius:4, padding:"10px 16px", maxWidth:320, textAlign:"center", lineHeight:1.6 }}>
                   {"✕"} {connError}
                 </div>
               )}
 
               <div style={{ display:"flex", flexDirection:"column", gap:10, width:"100%", maxWidth:320 }}>
                 <input
-                  style={{ ...S.input, fontSize:22, textAlign:"center", letterSpacing:6, padding:"12px 8px", color:"#FFD700", borderColor:"#FFD70044" }}
+                  style={{ ...S.input, fontSize:28, textAlign:"center", letterSpacing:8, padding:"14px 8px", color:"#FFD700", borderColor:"#FFD70044", borderRadius:4 }}
                   placeholder="ABC123"
                   value={roomInput}
                   maxLength={6}
+                  autoCapitalize="characters"
+                  autoCorrect="off"
+                  spellCheck={false}
                   onChange={e => setRoomInput(e.target.value.toUpperCase())}
-                  onKeyDown={e => e.key === "Enter" && connectToGM()}
+                  onKeyDown={e => e.key === "Enter" && connectToRoom(roomInput)}
                 />
-                <button
-                  onClick={connectToGM}
-                  style={{ ...S.btn("#00FF41"), fontSize:13, padding:"10px", letterSpacing:2 }}>
+                <button onClick={() => connectToRoom(roomInput)}
+                  style={{ ...S.btn("#00FF41"), fontSize:14, padding:"12px", letterSpacing:2, borderRadius:4 }}>
                   {"▷"} CONECTAR
                 </button>
+                <button onClick={limpiarDatos}
+                  style={{ ...S.btn("#4a5a4a"), fontSize:11, padding:"8px", letterSpacing:1 }}>
+                  {"↺"} Limpiar datos guardados
+                </button>
               </div>
-              <div style={{ marginTop:32, color:"#4a5a4a", fontSize:10, letterSpacing:2, textAlign:"center" }}>
-                El DJ ve el código en su pantalla de DJ.
+              <div style={{ marginTop:28, color:"#4a5a4a", fontSize:10, letterSpacing:2, textAlign:"center" }}>
+                El DJ ve el código en su pantalla · v{VERSION}
               </div>
             </div>
           </div>
         );
       }
 
-      /* ── Screen: Connecting spinner ── */
+      /* ── Pantalla: conectando ── */
       if (connStatus === 'connecting') {
         return (
-          <div style={{ minHeight:"100vh", background:"#080b0f", color:"#b0c4b0", fontFamily:"'Courier New',monospace", display:"flex", alignItems:"center", justifyContent:"center" }}>
-            <div style={{ textAlign:"center" }}>
-              <div style={{ color:"#00FF41", fontSize:13, letterSpacing:4, marginBottom:8 }}>CONECTANDO...</div>
-              <div style={{ color:"#4a5a4a", fontSize:11, letterSpacing:2 }}>código {roomInput}</div>
-            </div>
+          <div style={{ minHeight:"100vh", background:"#080b0f", fontFamily:"'Courier New',monospace", display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", gap:16 }}>
+            <div style={{ color:"#00FF41", fontSize:13, letterSpacing:4 }}>CONECTANDO...</div>
+            <div style={{ color:"#4a5a4a", fontSize:11, letterSpacing:2 }}>sala {roomInput}</div>
+            <button onClick={limpiarDatos} style={{ ...S.btn("#4a5a4a"), fontSize:10, marginTop:8 }}>Cancelar</button>
           </div>
         );
       }
 
-      /* ── Screen: Connected — choose character ── */
+      /* ── Pantalla: elegir personaje ── */
       if (!meId || !myChar) {
         return (
           <div style={{ minHeight:"100vh", background:"#080b0f", color:"#b0c4b0", fontFamily:"'Courier New',monospace", display:"flex", flexDirection:"column" }}>
             {!IN_IFRAME && (
-              <div style={{ background:"#050709", borderBottom:"1px solid #00FF4133", padding:"16px 32px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
-                <div style={{ color:"#00FF41", fontSize:18, fontWeight:"bold", letterSpacing:4 }}>{"◈"} CARBON 2185</div>
+              <div style={{ background:"#050709", borderBottom:"1px solid #00FF4133", padding:"14px 24px", display:"flex", alignItems:"center", justifyContent:"space-between" }}>
+                <div style={{ color:"#00FF41", fontSize:16, fontWeight:"bold", letterSpacing:3 }}>{"◈"} CARBON 2185</div>
                 <div style={{ display:"flex", alignItems:"center", gap:10 }}>
                   <span style={{ color:"#00FF41", fontSize:10, letterSpacing:2 }}>{"●"} CONECTADO</span>
-                  <button onClick={() => { setConnStatus('idle'); setMeId(null); }} style={{ ...S.btnSm("#4a5a4a"), fontSize:10 }}>{"↩"} Salir</button>
+                  <button onClick={limpiarDatos} style={{ ...S.btnSm("#4a5a4a"), fontSize:10 }}>{"↩"} Salir</button>
                 </div>
               </div>
             )}
             <div style={{ flex:1, display:"flex", flexDirection:"column", alignItems:"center", justifyContent:"center", padding:"2rem" }}>
-              <div style={{ color:"#00BFFF", fontSize:11, letterSpacing:4, textTransform:"uppercase", marginBottom:24 }}>{">"} Identificate para ingresar tu data</div>
+              <div style={{ color:"#00BFFF", fontSize:11, letterSpacing:4, textTransform:"uppercase", marginBottom:24 }}>{">"} ¿Quién sos?</div>
               {pcs.length === 0 ? (
-                <div style={{ color:"#4a5a4a", fontSize:13, letterSpacing:2, textAlign:"center" }}>[ Esperando que el DJ agregue combatientes... ]</div>
+                <div style={{ color:"#4a5a4a", fontSize:13, letterSpacing:2, textAlign:"center" }}>[ El DJ todavía no agregó combatientes ]</div>
               ) : (
                 <div style={{ display:"flex", flexDirection:"column", gap:12, width:"100%", maxWidth:320 }}>
                   {pcs.map(pc => (
                     <button key={pc.id} onClick={() => selectMe(pc)}
-                      style={{ ...S.btn("#00BFFF"), fontSize:14, padding:"12px 20px", letterSpacing:2 }}>
+                      style={{ ...S.btn("#00BFFF"), fontSize:15, padding:"14px 20px", letterSpacing:2, borderRadius:4 }}>
                       {"▷"} {pc.name}
                     </button>
                   ))}
                 </div>
               )}
-              <div style={{ marginTop:32, color:"#4a5a4a", fontSize:10, letterSpacing:2 }}>Solo visible para ti.</div>
             </div>
           </div>
         );
       }
 
-      /* ── Screen: Main player view ── */
+      /* ── Pantalla principal del jugador ── */
       const hpPct   = myChar.maxHp ? Math.max(0, Math.min(100, (myChar.hp / myChar.maxHp) * 100)) : 0;
       const hpColor = hpPct > 50 ? "#00FF41" : hpPct > 25 ? "#FFD700" : "#FF4136";
       const myEmoji = hpEmoji(myChar);
 
       return (
         <div style={{ minHeight:"100vh", background:"#080b0f", color:"#b0c4b0", fontFamily:"'Courier New',monospace", display:"flex", flexDirection:"column" }}>
-
           {!IN_IFRAME && (
-            <div style={{ background:"#050709", borderBottom:"1px solid #00FF4133", padding:"14px 24px", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:8 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:16 }}>
-                <div style={{ color:"#00FF41", fontSize:16, fontWeight:"bold", letterSpacing:3 }}>{"◈"} CARBON 2185</div>
-                <span style={{ color:"#00BFFF", fontSize:13, letterSpacing:2, borderLeft:"1px solid #00FF4133", paddingLeft:16 }}>{myChar.name}</span>
-              </div>
+            <div style={{ background:"#050709", borderBottom:"1px solid #00FF4133", padding:"12px 20px", display:"flex", alignItems:"center", justifyContent:"space-between", flexWrap:"wrap", gap:8 }}>
               <div style={{ display:"flex", alignItems:"center", gap:12 }}>
-                <span style={{ color:"#4a5a4a", fontSize:11, letterSpacing:2 }}>RONDA <span style={{ color:"#00FF41" }}>{String(round).padStart(3,"0")}</span></span>
+                <div style={{ color:"#00FF41", fontSize:15, fontWeight:"bold", letterSpacing:3 }}>{"◈"} CARBON 2185</div>
+                <span style={{ color:"#00BFFF", fontSize:13, letterSpacing:2, borderLeft:"1px solid #00FF4133", paddingLeft:12 }}>{myChar.name}</span>
+              </div>
+              <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                <span style={{ color:"#4a5a4a", fontSize:11 }}>RONDA <span style={{ color:"#00FF41" }}>{String(round).padStart(3,"0")}</span></span>
                 <button onClick={clearMe} style={{ ...S.btnSm("#4a5a4a"), fontSize:10 }}>{"↩"} Cambiar</button>
               </div>
             </div>
           )}
 
           {activeChar && (
-            <div style={{ background:"#00FF4108", borderBottom:"1px solid #00FF4133", padding:"10px 24px", display:"flex", alignItems:"center", gap:12 }}>
+            <div style={{ background:"#00FF4108", borderBottom:"1px solid #00FF4133", padding:"10px 20px", display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
               <span style={{ color:"#4a5a4a", fontSize:10, letterSpacing:2 }}>TURNO DE</span>
-              <span style={{ color:"#00FF41", fontSize:18, fontWeight:"bold", letterSpacing:3 }}>{activeChar.name}</span>
-              <span style={{ fontSize:9, letterSpacing:1, color:activeChar.type==="PC"?"#00BFFF":"#FF00FF", border:"1px solid "+( activeChar.type==="PC"?"#00BFFF44":"#FF00FF44"), borderRadius:2, padding:"2px 6px" }}>
+              <span style={{ color:"#00FF41", fontSize:17, fontWeight:"bold", letterSpacing:2 }}>{activeChar.name}</span>
+              <span style={{ fontSize:9, color:activeChar.type==="PC"?"#00BFFF":"#FF00FF", border:"1px solid "+(activeChar.type==="PC"?"#00BFFF44":"#FF00FF44"), borderRadius:2, padding:"2px 6px" }}>
                 {activeChar.type === "PC" ? "JUGADOR" : "ENEMIGO"}
               </span>
             </div>
           )}
 
-          <div style={{ flex:1, padding:"20px 24px", maxWidth:760, margin:"0 auto", width:"100%" }}>
-
-            <div style={{ background:"#0a1020", border:"1px solid #00BFFF33", borderRadius:8, padding:20, marginBottom:20 }}>
-              <div style={{ color:"#00BFFF", fontSize:11, letterSpacing:3, textTransform:"uppercase", marginBottom:16, paddingBottom:8, borderBottom:"1px solid #00BFFF22" }}>
+          <div style={{ flex:1, padding:"16px", maxWidth:760, margin:"0 auto", width:"100%" }}>
+            <div style={{ background:"#0a1020", border:"1px solid #00BFFF33", borderRadius:8, padding:16, marginBottom:16 }}>
+              <div style={{ color:"#00BFFF", fontSize:11, letterSpacing:3, textTransform:"uppercase", marginBottom:14, paddingBottom:6, borderBottom:"1px solid #00BFFF22" }}>
                 {"⬡"} Mi estado — {myChar.name}
               </div>
-              <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:16 }}>
 
+              <div className="player-stats-grid">
+                {/* Iniciativa */}
                 <div>
                   <div style={{ color:"#4a5a4a", fontSize:10, letterSpacing:2, marginBottom:8 }}>INICIATIVA</div>
-                  <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                    <button style={{ ...S.btn("#4a5a4a"), padding:"8px 14px", fontSize:16, lineHeight:1 }}
+                  <div className="init-controls">
+                    <button style={{ ...S.btn("#4a5a4a"), padding:"10px 16px", fontSize:18, lineHeight:1 }}
                       onClick={() => { const v = Math.max(-20, parseInt(initVal||"0")-1); setInitVal(String(v)); updateMe({initiative:v}); }}>{"−"}</button>
                     <input type="number" value={initVal}
                       onChange={e => { setInitVal(e.target.value); setEditingInit(true); }}
                       onFocus={() => setEditingInit(true)}
                       onBlur={commitInit}
                       onKeyDown={e => e.key==="Enter" && commitInit()}
-                      style={{ ...S.input, textAlign:"center", fontSize:24, fontWeight:"bold", color:"#FFD700", padding:"8px", width:80 }} />
-                    <button style={{ ...S.btn("#4a5a4a"), padding:"8px 14px", fontSize:16, lineHeight:1 }}
+                      style={{ ...S.input, textAlign:"center", fontSize:26, fontWeight:"bold", color:"#FFD700", padding:"10px", width:80 }} />
+                    <button style={{ ...S.btn("#4a5a4a"), padding:"10px 16px", fontSize:18, lineHeight:1 }}
                       onClick={() => { const v = Math.min(30, parseInt(initVal||"0")+1); setInitVal(String(v)); updateMe({initiative:v}); }}>{"+"}</button>
-                    <button style={{ ...S.btn("#00FF41"), padding:"8px 12px", fontSize:11 }} onClick={commitInit}>{"◈"} OK</button>
+                    <button style={{ ...S.btn("#00FF41"), padding:"10px 12px", fontSize:11 }} onClick={commitInit}>{"◈"} OK</button>
                   </div>
                 </div>
 
+                {/* HP */}
                 <div>
                   <div style={{ color:"#4a5a4a", fontSize:10, letterSpacing:2, marginBottom:8 }}>
-                    PUNTOS DE VIDA
-                    {myEmoji && <span style={{ marginLeft:8, fontSize:16 }} title={myEmoji.title}>{myEmoji.icon}</span>}
+                    PUNTOS DE VIDA {myEmoji && <span style={{ marginLeft:8, fontSize:16 }} title={myEmoji.title}>{myEmoji.icon}</span>}
                   </div>
-                  <div style={{ display:"flex", alignItems:"center", gap:6, marginBottom:8 }}>
-                    <button style={{ ...S.btn("#FF4136"), padding:"8px 12px", fontSize:16, lineHeight:1 }} onClick={() => hpDelta(-1)}>{"−"}</button>
+                  <div className="hp-controls">
+                    <button style={{ ...S.btn("#FF4136"), padding:"10px 14px", fontSize:18, lineHeight:1 }} onClick={() => hpDelta(-1)}>{"−"}</button>
                     <input type="number" value={hpVal} placeholder="HP"
                       onChange={e => { setHpVal(e.target.value); setEditingHp(true); }}
                       onFocus={() => setEditingHp(true)}
                       onBlur={commitHP}
                       onKeyDown={e => e.key==="Enter" && commitHP()}
-                      style={{ ...S.input, textAlign:"center", fontSize:20, fontWeight:"bold", color:myChar.hp !== null ? hpColor : "#4a5a4a", padding:"8px", width:65 }} />
+                      style={{ ...S.input, textAlign:"center", fontSize:22, fontWeight:"bold", color:myChar.hp !== null ? hpColor : "#4a5a4a", padding:"10px", width:65 }} />
                     <span style={{ color:"#4a5a4a", fontSize:14 }}>/</span>
                     <input type="number" value={maxHpVal} placeholder="MAX"
                       onChange={e => { setMaxHpVal(e.target.value); setEditingHp(true); }}
                       onFocus={() => setEditingHp(true)}
                       onBlur={commitHP}
                       onKeyDown={e => e.key==="Enter" && commitHP()}
-                      style={{ ...S.input, textAlign:"center", fontSize:14, color:"#00BFFF", padding:"8px", width:58 }} />
-                    <button style={{ ...S.btn("#00FF41"), padding:"8px 12px", fontSize:16, lineHeight:1 }} onClick={() => hpDelta(1)}>{"+"}</button>
+                      style={{ ...S.input, textAlign:"center", fontSize:14, color:"#00BFFF", padding:"10px", width:58 }} />
+                    <button style={{ ...S.btn("#00FF41"), padding:"10px 14px", fontSize:18, lineHeight:1 }} onClick={() => hpDelta(1)}>{"+"}</button>
                   </div>
                   {myChar.maxHp !== null && (
-                    <div style={{ height:4, background:"#1a1a1a", borderRadius:2, overflow:"hidden" }}>
+                    <div style={{ height:5, background:"#1a1a1a", borderRadius:2, overflow:"hidden" }}>
                       <div style={{ width:hpPct+"%", height:"100%", background:hpColor, transition:"all 0.4s" }} />
                     </div>
                   )}
                 </div>
-
               </div>
             </div>
 
+            {/* Orden de iniciativa */}
             <div style={{ background:"#0d1117", border:"1px solid #00FF4133", borderRadius:6, padding:16 }}>
               <div style={{ color:"#00BFFF", fontSize:11, letterSpacing:3, textTransform:"uppercase", marginBottom:12, borderBottom:"1px solid #00BFFF22", paddingBottom:6 }}>
-                — ORDEN DE INICIATIVA —
+                — ORDEN —
               </div>
               {sorted.length === 0 ? (
                 <div style={{ color:"#4a5a4a", textAlign:"center", padding:"20px 0", fontSize:12, letterSpacing:2 }}>[ SIN COMBATIENTES ]</div>
@@ -419,23 +504,22 @@
                 const isMe     = char.id === meId;
                 const emoji    = hpEmoji(char);
                 return (
-                  <div key={char.id} style={{ background:isActive?"#00FF410d":isMe?"#00BFFF06":"#0a0f0a", border:"1px solid "+(isActive?"#00FF41":isMe?"#00BFFF44":"#00FF411a"), borderRadius:6, padding:"12px 18px", marginBottom:8, position:"relative" }}>
+                  <div key={char.id} style={{ background:isActive?"#00FF410d":isMe?"#00BFFF06":"#0a0f0a", border:"1px solid "+(isActive?"#00FF41":isMe?"#00BFFF44":"#00FF411a"), borderRadius:6, padding:"10px 14px", marginBottom:8, position:"relative" }}>
                     {isActive && <div style={{ position:"absolute", left:0, top:0, bottom:0, width:4, background:"#00FF41", borderRadius:"6px 0 0 6px" }} />}
                     {!isActive && isMe && <div style={{ position:"absolute", left:0, top:0, bottom:0, width:4, background:"#00BFFF", borderRadius:"6px 0 0 6px", opacity:0.5 }} />}
-                    <div style={{ display:"flex", alignItems:"center", gap:14 }}>
-                      <span style={{ color:"#4a5a4a", fontSize:12, minWidth:22, textAlign:"right" }}>{"#"+(i+1)}</span>
-                      <span style={{ color:isActive?"#FFD700":"#FFD70099", fontSize:26, fontWeight:"bold", minWidth:48, textAlign:"center" }}>{char.initiative}</span>
+                    <div style={{ display:"flex", alignItems:"center", gap:10 }}>
+                      <span style={{ color:"#4a5a4a", fontSize:11, minWidth:20 }}>{"#"+(i+1)}</span>
+                      <span style={{ color:isActive?"#FFD700":"#FFD70099", fontSize:22, fontWeight:"bold", minWidth:42, textAlign:"center" }}>{char.initiative}</span>
                       <div style={{ flex:1 }}>
-                        <div style={{ display:"flex", alignItems:"center", gap:8 }}>
-                          <span style={{ color:isActive?"#00FF41":isMe?"#00BFFF":"#b0c4b0", fontSize:17, fontWeight:isActive?"bold":"normal", letterSpacing:1 }}>
-                            {char.name}
-                            {isMe && <span style={{ color:"#00BFFF", fontSize:10, letterSpacing:2, marginLeft:8 }}>[TU]</span>}
+                        <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
+                          <span style={{ color:isActive?"#00FF41":isMe?"#00BFFF":"#b0c4b0", fontSize:15, fontWeight:isActive?"bold":"normal" }}>
+                            {char.name}{isMe && <span style={{ color:"#00BFFF", fontSize:10, letterSpacing:2, marginLeft:6 }}>[TU]</span>}
                           </span>
-                          <span style={{ fontSize:9, letterSpacing:1, color:char.type==="PC"?"#00BFFF":"#FF00FF", border:"1px solid "+(char.type==="PC"?"#00BFFF44":"#FF00FF44"), borderRadius:2, padding:"1px 5px" }}>
+                          <span style={{ fontSize:9, color:char.type==="PC"?"#00BFFF":"#FF00FF", border:"1px solid "+(char.type==="PC"?"#00BFFF44":"#FF00FF44"), borderRadius:2, padding:"1px 5px" }}>
                             {char.type === "PC" ? "PJ" : "PNJ"}
                           </span>
                         </div>
-                        {char.conditions.length > 0 && (
+                        {char.conditions && char.conditions.length > 0 && (
                           <div style={{ display:"flex", flexWrap:"wrap", marginTop:4 }}>
                             {char.conditions.map(cond => (
                               <span key={cond.id} style={S.tag(cond.color)}>
@@ -445,8 +529,8 @@
                           </div>
                         )}
                       </div>
-                      {emoji && <span title={emoji.title} style={{ fontSize:24, lineHeight:1 }}>{emoji.icon}</span>}
-                      {isActive && <div style={{ color:"#00FF41", fontSize:16 }}>{"▶"}</div>}
+                      {emoji && <span title={emoji.title} style={{ fontSize:20 }}>{emoji.icon}</span>}
+                      {isActive && <div style={{ color:"#00FF41", fontSize:14 }}>{"▶"}</div>}
                     </div>
                   </div>
                 );
@@ -454,8 +538,8 @@
             </div>
           </div>
 
-          <div style={{ borderTop:"1px solid #00FF4111", padding:"10px 24px", color:"#4a5a4a", fontSize:10, letterSpacing:2, textAlign:"center" }}>
-            CARBON 2185 // INITIATIVE TRACKER // P2P SYNC
+          <div style={{ borderTop:"1px solid #00FF4111", padding:"8px 20px", color:"#4a5a4a", fontSize:10, letterSpacing:2, textAlign:"center" }}>
+            CARBON 2185 · FIREBASE SYNC · v{VERSION}
           </div>
         </div>
       );
@@ -484,46 +568,44 @@
       };
 
       return (
-        <div style={{ background:isActive?"#00FF410a":"#0a0f0a", border:"1px solid "+(isActive?"#00FF41":"#00FF4122"), borderRadius:5, padding:"10px 14px", marginBottom:8, position:"relative", transition:"all 0.2s" }}>
+        <div style={{ background:isActive?"#00FF410a":"#0a0f0a", border:"1px solid "+(isActive?"#00FF41":"#00FF4122"), borderRadius:5, padding:"10px 14px", marginBottom:8, position:"relative" }}>
           {isActive && <div style={{ position:"absolute", left:0, top:0, bottom:0, width:3, background:"#00FF41", borderRadius:"5px 0 0 5px" }} />}
           <div style={{ display:"flex", alignItems:"center", gap:10 }}>
             <span style={{ color:"#4a5a4a", fontSize:11, minWidth:18 }}>{"#"+(rank+1)}</span>
             {editInit ? (
               <input autoFocus style={{ ...S.input, width:46, textAlign:"center", fontSize:16, color:"#FFD700" }}
-                value={initVal}
-                onChange={e => setInitVal(e.target.value)}
+                value={initVal} onChange={e => setInitVal(e.target.value)}
                 onBlur={() => { updateChar(char.id, {initiative:Number(initVal)||0}); setEditInit(false); }}
                 onKeyDown={e => { if(e.key==="Enter"){ updateChar(char.id,{initiative:Number(initVal)||0}); setEditInit(false); } if(e.key==="Escape") setEditInit(false); }} />
             ) : (
               <span onClick={() => { setEditInit(true); setInitVal(String(char.initiative)); }}
-                title="Clic para editar" style={{ color:"#FFD700", fontSize:18, fontWeight:"bold", minWidth:46, textAlign:"center", cursor:"pointer" }}>
+                style={{ color:"#FFD700", fontSize:18, fontWeight:"bold", minWidth:46, textAlign:"center", cursor:"pointer" }}>
                 {char.initiative}
               </span>
             )}
             <div style={{ flex:1 }}>
-              <div style={{ display:"flex", alignItems:"center", gap:6 }}>
+              <div style={{ display:"flex", alignItems:"center", gap:6, flexWrap:"wrap" }}>
                 <span style={{ color:isActive?"#00FF41":"#b0c4b0", fontWeight:isActive?"bold":"normal", fontSize:14 }}>{char.name}</span>
-                <span style={{ fontSize:9, letterSpacing:1, color:char.type==="PC"?"#00BFFF":"#FF00FF", border:"1px solid "+(char.type==="PC"?"#00BFFF44":"#FF00FF44"), borderRadius:2, padding:"0 4px" }}>{char.type}</span>
+                <span style={{ fontSize:9, color:char.type==="PC"?"#00BFFF":"#FF00FF", border:"1px solid "+(char.type==="PC"?"#00BFFF44":"#FF00FF44"), borderRadius:2, padding:"0 4px" }}>{char.type}</span>
               </div>
-              {char.conditions.length > 0 && (
+              {char.conditions && char.conditions.length > 0 && (
                 <div style={{ marginTop:4, display:"flex", flexWrap:"wrap" }}>
                   {char.conditions.map(cond => (
                     <span key={cond.id} style={S.tag(cond.color)}>
                       {cond.name}{cond.duration!==null && <span style={{ opacity:0.7 }}> {cond.duration}</span>}
-                      <span onClick={() => removeCondition(char.id, cond.id)} style={{ cursor:"pointer", opacity:0.6, marginLeft:2 }}>{"x"}</span>
+                      <span onClick={() => removeCondition(char.id, cond.id)} style={{ cursor:"pointer", opacity:0.6, marginLeft:2 }}>x</span>
                     </span>
                   ))}
                 </div>
               )}
             </div>
             {hasHp && (
-              <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4, minWidth:110 }}>
+              <div style={{ display:"flex", flexDirection:"column", alignItems:"center", gap:4, minWidth:100 }}>
                 <div style={{ display:"flex", alignItems:"center", gap:4 }}>
                   <button style={S.btnSm("#FF4136")} onClick={() => updateHpDelta(char.id, -1)}>{"−"}</button>
                   {editHp ? (
                     <input autoFocus style={{ ...S.input, width:52, textAlign:"center", fontSize:13, color:hpColor, padding:"2px 4px" }}
-                      value={hpVal}
-                      onChange={e => setHpVal(e.target.value)}
+                      value={hpVal} onChange={e => setHpVal(e.target.value)}
                       onBlur={commitHp}
                       onKeyDown={e => { if(e.key==="Enter") commitHp(); if(e.key==="Escape") setEditHp(false); }} />
                   ) : (
@@ -533,15 +615,15 @@
                     </span>
                   )}
                   <button style={S.btnSm("#00FF41")} onClick={() => updateHpDelta(char.id, +1)}>{"+"}</button>
-                  {emoji && <span style={{ fontSize:18, lineHeight:1, marginLeft:2 }} title={emoji.title}>{emoji.icon}</span>}
+                  {emoji && <span style={{ fontSize:16, marginLeft:2 }} title={emoji.title}>{emoji.icon}</span>}
                 </div>
-                <div style={{ width:100, height:4, background:"#1a1a1a", borderRadius:2, overflow:"hidden" }}>
+                <div style={{ width:90, height:4, background:"#1a1a1a", borderRadius:2, overflow:"hidden" }}>
                   <div style={{ width:hpPct+"%", height:"100%", background:hpColor, transition:"all 0.3s" }} />
                 </div>
               </div>
             )}
             <div style={{ display:"flex", flexDirection:"column", gap:4 }}>
-              <button style={S.btnSm("#00BFFF")} onClick={() => setCondModal(char.id)}>{"⚡"} COND</button>
+              <button style={S.btnSm("#00BFFF")} onClick={() => setCondModal(char.id)}>{"⚡"}</button>
               <button style={S.btnSm("#FF4136")} onClick={() => removeCharacter(char.id)}>{"✕"}</button>
             </div>
           </div>
@@ -556,51 +638,49 @@
       const char = characters.find(c => c.id === condModal);
       if (!char) return null;
       return (
-        <div style={{ position:"fixed", inset:0, background:"#000000cc", display:"flex", alignItems:"center", justifyContent:"center", zIndex:200 }}
+        <div style={{ position:"fixed", inset:0, background:"#000000cc", display:"flex", alignItems:"center", justifyContent:"center", zIndex:200, padding:"1rem" }}
           onClick={e => e.target===e.currentTarget && setCondModal(null)}>
-          <div style={{ background:"#0d1520", border:"1px solid #00BFFF55", borderRadius:8, padding:24, width:380, maxWidth:"95vw" }}>
-            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:16 }}>
-              <h3 style={{ color:"#00BFFF", margin:0, fontSize:13, letterSpacing:2 }}>{"⚡"} CONDICIONES — {char.name}</h3>
+          <div style={{ background:"#0d1520", border:"1px solid #00BFFF55", borderRadius:8, padding:20, width:"100%", maxWidth:380 }}>
+            <div style={{ display:"flex", justifyContent:"space-between", alignItems:"center", marginBottom:14 }}>
+              <h3 style={{ color:"#00BFFF", margin:0, fontSize:13, letterSpacing:2 }}>{"⚡"} {char.name}</h3>
               <button style={S.btnSm("#4a5a4a")} onClick={() => setCondModal(null)}>{"✕"}</button>
             </div>
-            <div style={{ display:"flex", gap:10, marginBottom:12 }}>
+            <div style={{ display:"flex", gap:8, marginBottom:10 }}>
               <div style={{ flex:1 }}>
-                <div style={{ color:"#4a5a4a", fontSize:10, letterSpacing:1, marginBottom:4 }}>DURACION (0 = inf)</div>
+                <div style={{ color:"#4a5a4a", fontSize:10, marginBottom:4 }}>DURACIÓN (0=inf)</div>
                 <input style={{ ...S.input, width:"100%" }} type="number" min="0" value={condOpts.duration}
                   onChange={e => setCondOpts(o => ({...o, duration:e.target.value}))} />
               </div>
               <div style={{ flex:1 }}>
-                <div style={{ color:"#4a5a4a", fontSize:10, letterSpacing:1, marginBottom:4 }}>REDUCE AL...</div>
+                <div style={{ color:"#4a5a4a", fontSize:10, marginBottom:4 }}>REDUCE AL...</div>
                 <select style={{ ...S.select, width:"100%" }} value={condOpts.reducesAt}
                   onChange={e => setCondOpts(o => ({...o, reducesAt:e.target.value}))}>
-                  <option value="start">Inicio de turno</option>
-                  <option value="end">Final de turno</option>
+                  <option value="start">Inicio turno</option>
+                  <option value="end">Final turno</option>
                 </select>
               </div>
             </div>
-            <div style={{ color:"#4a5a4a", fontSize:10, letterSpacing:1, marginBottom:6 }}>CONDICIONES PRESET</div>
-            <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:14 }}>
+            <div style={{ display:"flex", flexWrap:"wrap", gap:6, marginBottom:12 }}>
               {PRESET_CONDITIONS.map(def => {
-                const active = char.conditions.find(c => c.name === def.name);
+                const active = char.conditions && char.conditions.find(c => c.name === def.name);
                 return (
                   <button key={def.name}
-                    style={{ ...S.btn(def.color), fontSize:11, padding:"3px 8px", background:active?(def.color+"22"):"transparent" }}
+                    style={{ ...S.btn(def.color), fontSize:11, padding:"4px 8px", background:active?(def.color+"22"):"transparent" }}
                     onClick={() => active ? removeCondition(char.id, active.id) : addCondition(char.id, def)}>
                     {active ? "✓ " : ""}{def.name}
                   </button>
                 );
               })}
             </div>
-            <div style={{ color:"#4a5a4a", fontSize:10, letterSpacing:1, marginBottom:6 }}>CONDICION PERSONALIZADA</div>
             <div style={{ display:"flex", gap:8 }}>
-              <input style={{ ...S.input, flex:1 }} placeholder="Nombre condicion..." value={customCond.name}
+              <input style={{ ...S.input, flex:1 }} placeholder="Condición personalizada..." value={customCond.name}
                 onChange={e => setCustomCond(c => ({...c, name:e.target.value}))} />
               <input type="color" value={customCond.color}
                 onChange={e => setCustomCond(c => ({...c, color:e.target.value}))}
                 style={{ width:34, height:34, border:"none", borderRadius:3, background:"none", cursor:"pointer", padding:0 }} />
               <button style={S.btn("#00BFFF")}
                 onClick={() => { if(!customCond.name.trim()) return; addCondition(char.id, customCond); setCustomCond({name:"",color:"#00FF41"}); }}>
-                + ADD
+                ADD
               </button>
             </div>
           </div>
@@ -612,91 +692,74 @@
        GM VIEW
     ══════════════════════════════════════ */
     function GMView() {
-      /* ── Game state ── */
-      const [characters,   setCharacters]   = useState(() => { const s = loadState(); return s?.characters || []; });
-      const [activeCharId, setActiveCharId] = useState(() => { const s = loadState(); return s?.activeCharId || null; });
-      const [round,        setRound]        = useState(() => { const s = loadState(); return s?.round || 1; });
+      const [characters,   setCharacters]   = useState([]);
+      const [activeCharId, setActiveCharId] = useState(null);
+      const [round,        setRound]        = useState(1);
       const [form,         setForm]         = useState({ name:"", type:"PC", initiative:"", hp:"10" });
       const [condModal,    setCondModal]    = useState(null);
       const [condOpts,     setCondOpts]     = useState({ duration:"1", reducesAt:"end" });
       const [customCond,   setCustomCond]   = useState({ name:"", color:"#00FF41" });
-
-      /* ── PeerJS state ── */
-      const [roomCode,       setRoomCode]       = useState(null);  // 6-char display code (uppercase)
-      const [peerStatus,     setPeerStatus]     = useState('connecting'); // connecting | ready | error
+      const [roomCode,     setRoomCode]     = useState(() => localStorage.getItem(ROOM_KEY) || generateCode());
+      const [stateLoaded,  setStateLoaded]  = useState(false);
       const [connectedCount, setConnectedCount] = useState(0);
-      const [copied,         setCopied]         = useState(false);
-      const connectionsRef = useRef([]);
-      const stateRef       = useRef({ characters, activeCharId, round });
+      const [copied,       setCopied]       = useState(false);
+      const isSyncing = useRef(false);
 
-      /* Keep stateRef current so PeerJS callbacks always see latest state */
       useEffect(() => {
-        stateRef.current = { characters, activeCharId, round };
-      }, [characters, activeCharId, round]);
+        localStorage.setItem(ROOM_KEY, roomCode);
+        setStateLoaded(false);
+        isSyncing.current = true;
 
-      /* ── Initialize PeerJS on mount ── */
+        const roomRef    = window.db.ref('rooms/' + roomCode);
+        const updatesRef = roomRef.child('playerUpdates');
+        const presRef    = roomRef.child('presence');
+
+        roomRef.child('state').once('value', (snap) => {
+          const saved = snap.val();
+          if (saved && Array.isArray(saved.characters)) {
+            setCharacters(saved.characters);
+            setActiveCharId(saved.activeCharId || null);
+            setRound(saved.round || 1);
+          }
+          isSyncing.current = false;
+          setStateLoaded(true);
+        });
+
+        const handlePlayerUpdate = (snap) => {
+          const updates = snap.val();
+          const charId  = snap.key;
+          if (!updates || !charId) return;
+          setCharacters(prev => prev.map(c => c.id === charId ? { ...c, ...updates } : c));
+        };
+        updatesRef.on('child_added',   handlePlayerUpdate);
+        updatesRef.on('child_changed', handlePlayerUpdate);
+        presRef.on('value', (snap) => setConnectedCount(snap.numChildren()));
+
+        return () => {
+          updatesRef.off('child_added',   handlePlayerUpdate);
+          updatesRef.off('child_changed', handlePlayerUpdate);
+          presRef.off('value');
+        };
+      }, [roomCode]);
+
       useEffect(() => {
-        const shortCode = Math.random().toString(36).substr(2, 6).toUpperCase();
-        const fullId    = ROOM_PREFIX + shortCode.toLowerCase();
-        const peer      = new Peer(fullId);
+        if (!stateLoaded || isSyncing.current) return;
+        window.db.ref('rooms/' + roomCode + '/state').set({ characters, activeCharId, round });
+      }, [characters, activeCharId, round, stateLoaded, roomCode]);
 
-        peer.on('open', () => {
-          setRoomCode(shortCode);
-          setPeerStatus('ready');
-        });
-
-        peer.on('error', (err) => {
-          console.error('PeerJS GM error:', err);
-          setPeerStatus('error');
-        });
-
-        peer.on('connection', (conn) => {
-          conn.on('open', () => {
-            connectionsRef.current.push(conn);
-            setConnectedCount(n => n + 1);
-            // Send full current state to newly connected player
-            conn.send({ type: 'state', ...stateRef.current });
-          });
-
-          conn.on('data', (msg) => {
-            if (msg.type === 'player_update') {
-              const { charId, updates } = msg;
-              setCharacters(prev => prev.map(c =>
-                c.id === charId ? { ...c, ...updates } : c
-              ));
-            }
-          });
-
-          conn.on('close', () => {
-            connectionsRef.current = connectionsRef.current.filter(c => c !== conn);
-            setConnectedCount(n => Math.max(0, n - 1));
-          });
-
-          conn.on('error', () => {
-            connectionsRef.current = connectionsRef.current.filter(c => c !== conn);
-            setConnectedCount(n => Math.max(0, n - 1));
-          });
-        });
-
-        return () => peer.destroy();
-      }, []);
-
-      /* ── Broadcast + save on any state change ── */
-      useEffect(() => {
-        const snapshot = { characters, activeCharId, round };
-        saveState(snapshot);
-        connectionsRef.current.forEach(conn => {
-          try { if (conn.open) conn.send({ type: 'state', ...snapshot }); } catch(e) {}
-        });
-      }, [characters, activeCharId, round]);
+      const newSession = () => {
+        if (!window.confirm('¿Nueva sesión? Se genera un código nuevo y se limpia el combate.')) return;
+        const code = generateCode();
+        setCharacters([]); setActiveCharId(null); setRound(1);
+        setRoomCode(code);
+      };
 
       const sorted     = useMemo(() => [...characters].sort((a,b) => b.initiative-a.initiative), [characters]);
       const activeChar = sorted.find(c => c.id === activeCharId) || null;
 
       useEffect(() => {
-        if (activeCharId && !characters.find(c => c.id === activeCharId)) {
+        if (activeCharId && !characters.find(c => c.id === activeCharId))
           setActiveCharId(sorted[0] ? sorted[0].id : null);
-        }
       }, [characters]);
 
       useEffect(() => {
@@ -705,15 +768,14 @@
 
       const addCharacter = () => {
         if (!form.name.trim()) return;
-        const c = makeCharacter(form.name, form.type, form.initiative, form.hp);
-        setCharacters(p => [...p, c]);
+        setCharacters(p => [...p, makeCharacter(form.name, form.type, form.initiative, form.hp)]);
         setForm(f => ({...f, name:"", initiative:""}));
       };
 
       const removeCharacter = (id) => {
         setCharacters(p => p.filter(c => c.id !== id));
         if (id === activeCharId) {
-          const idx  = sorted.findIndex(c => c.id === id);
+          const idx = sorted.findIndex(c => c.id === id);
           const next = sorted[idx+1] || sorted[idx-1] || null;
           setActiveCharId(next ? next.id : null);
         }
@@ -726,7 +788,7 @@
       const processConditions = (charId, timing) => {
         setCharacters(p => p.map(c => {
           if (c.id !== charId) return c;
-          const updated = c.conditions
+          const updated = (c.conditions || [])
             .map(cond => cond.reducesAt===timing && cond.duration!==null ? {...cond,duration:cond.duration-1} : cond)
             .filter(cond => cond.duration===null || cond.duration>0);
           return {...c, conditions:updated};
@@ -738,19 +800,17 @@
         const cur = [...characters].sort((a,b) => b.initiative-a.initiative);
         const idx = cur.findIndex(c => c.id === activeCharId);
         if (idx !== -1) processConditions(activeCharId, "end");
-        const nextIdx  = (idx + 1) % cur.length;
-        const nextChar = cur[nextIdx];
+        const nextIdx = (idx + 1) % cur.length;
         if (nextIdx === 0) setRound(r => r+1);
-        setActiveCharId(nextChar.id);
-        setTimeout(() => processConditions(nextChar.id, "start"), 0);
+        setActiveCharId(cur[nextIdx].id);
+        setTimeout(() => processConditions(cur[nextIdx].id, "start"), 0);
       };
 
       const prevTurn = () => {
         if (!sorted.length) return;
         const cur = [...characters].sort((a,b) => b.initiative-a.initiative);
         const idx  = cur.findIndex(c => c.id === activeCharId);
-        const prev = idx <= 0 ? cur.length-1 : idx-1;
-        setActiveCharId(cur[prev].id);
+        setActiveCharId(cur[idx <= 0 ? cur.length-1 : idx-1].id);
       };
 
       const resetTracker = () => {
@@ -758,6 +818,7 @@
         const s = [...characters].sort((a,b) => b.initiative-a.initiative);
         setActiveCharId(s[0] ? s[0].id : null);
         setCharacters(p => p.map(c => ({...c, conditions:[]})));
+        window.db.ref('rooms/' + roomCode + '/playerUpdates').remove();
       };
 
       const addCondition = (charId, def) => {
@@ -765,67 +826,50 @@
         const cond = makeCondition(def.name, def.color, dur===null?0:dur, condOpts.reducesAt);
         setCharacters(p => p.map(c => {
           if (c.id !== charId) return c;
-          if (c.conditions.find(cc => cc.name===def.name)) return c;
-          return {...c, conditions:[...c.conditions, cond]};
+          if ((c.conditions||[]).find(cc => cc.name===def.name)) return c;
+          return {...c, conditions:[...(c.conditions||[]), cond]};
         }));
       };
 
       const removeCondition = (charId, condId) =>
-        setCharacters(p => p.map(c => c.id!==charId ? c : {...c, conditions:c.conditions.filter(cc => cc.id!==condId)}));
+        setCharacters(p => p.map(c => c.id!==charId ? c : {...c, conditions:(c.conditions||[]).filter(cc => cc.id!==condId)}));
 
       const openPlayerView = () => window.open(window.location.href.split("?")[0]+"?view=player", "_blank");
 
       const copyCode = () => {
-        if (!roomCode) return;
-        navigator.clipboard.writeText(roomCode).then(() => {
-          setCopied(true);
-          setTimeout(() => setCopied(false), 2000);
-        });
+        navigator.clipboard.writeText(roomCode).then(() => { setCopied(true); setTimeout(() => setCopied(false), 2000); });
       };
 
       return (
         <div style={{ minHeight:"100vh", background:"#080b0f", color:"#b0c4b0", fontFamily:"'Courier New',monospace", fontSize:14, paddingBottom:60 }}>
 
-          <header style={{ background:"#050709", borderBottom:"1px solid #00FF4133", padding:"14px 24px", display:IN_IFRAME?"none":"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:100, flexWrap:"wrap", gap:8 }}>
-            <h1 style={{ color:"#00FF41", fontSize:20, fontWeight:"bold", letterSpacing:4, margin:0 }}>{"◈"} CARBON 2185 // DJ</h1>
-            <div style={{ display:"flex", alignItems:"center", gap:10, flexWrap:"wrap" }}>
-              {activeChar && <span style={{ color:"#00FF41", fontSize:11, letterSpacing:1 }}>{"▶"} {activeChar.name}</span>}
-              <span style={{ background:"#0a1a0a", border:"1px solid #00FF4155", borderRadius:4, padding:"4px 12px", color:"#00FF41", fontSize:12, letterSpacing:2 }}>RONDA {String(round).padStart(3,"0")}</span>
-
-              {/* Room code badge */}
-              {peerStatus === 'ready' && roomCode ? (
-                <div style={{ display:"flex", alignItems:"center", gap:6 }}>
-                  <div style={{ background:"#0a0020", border:"1px solid #FFD70066", borderRadius:4, padding:"4px 12px", display:"flex", alignItems:"center", gap:8 }}>
-                    <span style={{ color:"#4a5a4a", fontSize:9, letterSpacing:2 }}>SALA</span>
-                    <span style={{ color:"#FFD700", fontSize:16, fontWeight:"bold", letterSpacing:4 }}>{roomCode}</span>
-                    <span style={{ color:connectedCount > 0 ? "#00FF41" : "#4a5a4a", fontSize:10, letterSpacing:1 }}>
-                      {"●"} {connectedCount} jugador{connectedCount !== 1 ? "es" : ""}
-                    </span>
-                  </div>
-                  <button onClick={copyCode} style={{ ...S.btn(copied ? "#00FF41" : "#FFD700"), fontSize:10, padding:"4px 10px" }}>
-                    {copied ? "✓ COPIADO" : "COPIAR"}
-                  </button>
-                </div>
-              ) : peerStatus === 'connecting' ? (
-                <span style={{ color:"#4a5a4a", fontSize:10, letterSpacing:2 }}>SALA: CONECTANDO...</span>
-              ) : (
-                <span style={{ color:"#FF4136", fontSize:10, letterSpacing:2 }}>SALA: ERROR</span>
-              )}
-
-              <button style={{ ...S.btn("#FF00FF"), fontSize:11, padding:"5px 14px" }} onClick={openPlayerView}>{"📺"} VISTA JUGADORES</button>
+          <header style={{ background:"#050709", borderBottom:"1px solid #00FF4133", padding:"12px 20px", display:IN_IFRAME?"none":"flex", alignItems:"center", justifyContent:"space-between", position:"sticky", top:0, zIndex:100, flexWrap:"wrap", gap:8 }}>
+            <h1 style={{ color:"#00FF41", fontSize:18, fontWeight:"bold", letterSpacing:3, margin:0 }}>{"◈"} CARBON 2185 // DJ</h1>
+            <div style={{ display:"flex", alignItems:"center", gap:8, flexWrap:"wrap" }}>
+              {activeChar && <span style={{ color:"#00FF41", fontSize:11 }}>{"▶"} {activeChar.name}</span>}
+              <span style={{ background:"#0a1a0a", border:"1px solid #00FF4155", borderRadius:4, padding:"4px 10px", color:"#00FF41", fontSize:11, letterSpacing:2 }}>R {String(round).padStart(3,"0")}</span>
+              <div style={{ background:"#0a0020", border:"1px solid #FFD70066", borderRadius:4, padding:"4px 10px", display:"flex", alignItems:"center", gap:8 }}>
+                <span style={{ color:"#4a5a4a", fontSize:9, letterSpacing:2 }}>SALA</span>
+                <span style={{ color:"#FFD700", fontSize:15, fontWeight:"bold", letterSpacing:3 }}>{roomCode}</span>
+                <span style={{ color:connectedCount > 0 ? "#00FF41" : "#4a5a4a", fontSize:10 }}>{"●"} {connectedCount}</span>
+              </div>
+              <button onClick={copyCode} style={{ ...S.btn(copied ? "#00FF41" : "#FFD700"), fontSize:10, padding:"4px 10px" }}>
+                {copied ? "✓" : "COPIAR"}
+              </button>
+              <button style={{ ...S.btn("#FF00FF"), fontSize:11, padding:"5px 12px" }} onClick={openPlayerView}>{"📺"} VISTA JUGADORES</button>
             </div>
           </header>
 
-          <div style={{ maxWidth:900, margin:"0 auto", padding:"20px 16px", display:"grid", gridTemplateColumns:"1fr 320px", gap:20 }}>
+          <div style={{ maxWidth:900, margin:"0 auto", padding:"16px", display:"grid", gridTemplateColumns:"1fr 300px", gap:16 }}>
 
             <div>
-              <div style={{ ...S.card, display:"flex", gap:10, alignItems:"center" }}>
-                <button style={{ ...S.btn("#00FF41"), fontSize:14, padding:"8px 24px", flex:1 }} onClick={nextTurn} disabled={!sorted.length}>{"▶"} SIGUIENTE TURNO</button>
+              <div style={{ ...S.card, display:"flex", gap:8, alignItems:"center" }}>
+                <button style={{ ...S.btn("#00FF41"), fontSize:13, padding:"8px 20px", flex:1 }} onClick={nextTurn} disabled={!sorted.length}>{"▶"} SIGUIENTE TURNO</button>
                 <button style={S.btn("#4a5a4a")} onClick={prevTurn} disabled={!sorted.length}>{"◄"}</button>
-                <button style={S.btn("#FF8C00")} onClick={resetTracker}>{"↺"} RESET</button>
+                <button style={S.btn("#FF8C00")} onClick={resetTracker}>{"↺"}</button>
               </div>
               <div style={S.card}>
-                <div style={S.sec}>&mdash; ORDEN DE INICIATIVA &mdash;</div>
+                <div style={S.sec}>&mdash; INICIATIVA &mdash;</div>
                 {sorted.length === 0 ? (
                   <div style={{ color:"#4a5a4a", textAlign:"center", padding:"20px 0", fontSize:12, letterSpacing:2 }}>[ SIN COMBATIENTES ]</div>
                 ) : sorted.map((char, i) => (
@@ -838,75 +882,67 @@
 
             <div>
               <div style={S.card}>
-                <div style={S.sec}>&mdash; ANADIR COMBATIENTE &mdash;</div>
+                <div style={S.sec}>&mdash; AGREGAR &mdash;</div>
                 <div style={{ marginBottom:8 }}>
-                  <div style={{ color:"#4a5a4a", fontSize:10, letterSpacing:1, marginBottom:4 }}>NOMBRE</div>
-                  <input style={S.input} placeholder="Nombre del personaje..." value={form.name}
+                  <div style={{ color:"#4a5a4a", fontSize:10, marginBottom:4 }}>NOMBRE</div>
+                  <input style={S.input} placeholder="Nombre..." value={form.name}
                     onChange={e => setForm(f => ({...f,name:e.target.value}))}
                     onKeyDown={e => e.key==="Enter" && addCharacter()} />
                 </div>
                 <div style={{ display:"grid", gridTemplateColumns:"1fr 1fr", gap:8, marginBottom:8 }}>
                   <div>
-                    <div style={{ color:"#4a5a4a", fontSize:10, letterSpacing:1, marginBottom:4 }}>TIPO</div>
+                    <div style={{ color:"#4a5a4a", fontSize:10, marginBottom:4 }}>TIPO</div>
                     <select style={{ ...S.select, width:"100%" }} value={form.type} onChange={e => setForm(f => ({...f,type:e.target.value}))}>
-                      <option value="PC">PJ (Jugador)</option>
-                      <option value="NPC">PNJ (Enemigo)</option>
+                      <option value="PC">PJ</option>
+                      <option value="NPC">PNJ</option>
                     </select>
                   </div>
                   <div>
-                    <div style={{ color:"#4a5a4a", fontSize:10, letterSpacing:1, marginBottom:4 }}>INICIATIVA</div>
+                    <div style={{ color:"#4a5a4a", fontSize:10, marginBottom:4 }}>INICIATIVA</div>
                     <input style={S.input} type="number" placeholder="0" value={form.initiative}
                       onChange={e => setForm(f => ({...f,initiative:e.target.value}))} />
                   </div>
                 </div>
                 {form.type==="NPC" && (
                   <div style={{ marginBottom:8 }}>
-                    <div style={{ color:"#4a5a4a", fontSize:10, letterSpacing:1, marginBottom:4 }}>PUNTOS DE SALUD</div>
+                    <div style={{ color:"#4a5a4a", fontSize:10, marginBottom:4 }}>HP</div>
                     <input style={S.input} type="number" placeholder="10" value={form.hp}
                       onChange={e => setForm(f => ({...f,hp:e.target.value}))} />
                   </div>
                 )}
-                <button style={{ ...S.btn("#00BFFF"), width:"100%", padding:"8px", fontSize:12, letterSpacing:1 }} onClick={addCharacter}>+ ANADIR AL COMBATE</button>
+                <button style={{ ...S.btn("#00BFFF"), width:"100%", padding:"8px", fontSize:12 }} onClick={addCharacter}>+ AGREGAR</button>
               </div>
 
-              {/* Room code panel */}
               <div style={{ ...S.card, borderColor:"#FFD70033", background:"#0a0a14" }}>
                 <div style={{ ...S.sec, color:"#FFD700" }}>&mdash; CÓDIGO DE SALA &mdash;</div>
-                {peerStatus === 'ready' && roomCode ? (
-                  <>
-                    <div style={{ textAlign:"center", marginBottom:14 }}>
-                      <div style={{ color:"#FFD700", fontSize:36, fontWeight:"bold", letterSpacing:10, padding:"10px 0" }}>{roomCode}</div>
-                      <div style={{ color:"#4a5a4a", fontSize:10, letterSpacing:2 }}>Los jugadores ingresan este código en la vista jugadores</div>
-                    </div>
-                    <div style={{ display:"flex", gap:8 }}>
-                      <button style={{ ...S.btn("#FFD700"), flex:1, padding:"7px", fontSize:11 }} onClick={copyCode}>
-                        {copied ? "✓ COPIADO" : "COPIAR CÓDIGO"}
-                      </button>
-                      <button style={{ ...S.btn("#FF00FF"), flex:1, padding:"7px", fontSize:11 }} onClick={openPlayerView}>
-                        {"📺"} ABRIR VISTA
-                      </button>
-                    </div>
-                    <div style={{ marginTop:12, display:"flex", alignItems:"center", gap:8 }}>
-                      <div style={{ width:8, height:8, borderRadius:"50%", background:connectedCount > 0 ? "#00FF41" : "#4a5a4a", flexShrink:0 }} />
-                      <span style={{ color:connectedCount > 0 ? "#00FF41" : "#4a5a4a", fontSize:11, letterSpacing:1 }}>
-                        {connectedCount} jugador{connectedCount !== 1 ? "es" : ""} conectado{connectedCount !== 1 ? "s" : ""}
-                      </span>
-                    </div>
-                  </>
-                ) : peerStatus === 'connecting' ? (
-                  <div style={{ color:"#4a5a4a", fontSize:11, letterSpacing:2, textAlign:"center", padding:"10px 0" }}>GENERANDO SALA...</div>
-                ) : (
-                  <div style={{ color:"#FF4136", fontSize:11, letterSpacing:1, padding:"8px 0" }}>
-                    Error al crear la sala. Recargá la página.
-                  </div>
-                )}
+                <div style={{ textAlign:"center", marginBottom:12 }}>
+                  <div style={{ color:"#FFD700", fontSize:32, fontWeight:"bold", letterSpacing:8, padding:"8px 0" }}>{roomCode}</div>
+                  <div style={{ color:"#4a5a4a", fontSize:10, letterSpacing:1 }}>Jugadores ingresan este código</div>
+                </div>
+                <div style={{ display:"flex", gap:6, marginBottom:8 }}>
+                  <button style={{ ...S.btn("#FFD700"), flex:1, padding:"7px", fontSize:11 }} onClick={copyCode}>
+                    {copied ? "✓ COPIADO" : "COPIAR"}
+                  </button>
+                  <button style={{ ...S.btn("#FF00FF"), flex:1, padding:"7px", fontSize:11 }} onClick={openPlayerView}>
+                    {"📺"} VISTA
+                  </button>
+                </div>
+                <button style={{ ...S.btn("#4a5a4a"), width:"100%", padding:"6px", fontSize:10, marginBottom:10 }} onClick={newSession}>
+                  {"↺"} Nueva sesión
+                </button>
+                <div style={{ display:"flex", alignItems:"center", gap:8 }}>
+                  <div style={{ width:7, height:7, borderRadius:"50%", background: stateLoaded ? (connectedCount > 0 ? "#00FF41" : "#00BFFF") : "#FFD700", flexShrink:0 }} />
+                  <span style={{ color:"#4a5a4a", fontSize:10 }}>
+                    {!stateLoaded ? "Sincronizando..." : connectedCount > 0 ? connectedCount + " jugador" + (connectedCount!==1?"es":"") + " conectado" + (connectedCount!==1?"s":"") : "Esperando jugadores"}
+                  </span>
+                </div>
               </div>
 
               <div style={S.card}>
-                <div style={S.sec}>&mdash; CONDICIONES ACTIVAS &mdash;</div>
-                {characters.every(c => c.conditions.length===0) ? (
-                  <div style={{ color:"#4a5a4a", fontSize:11, letterSpacing:1 }}>[ NINGUNA ]</div>
-                ) : characters.filter(c => c.conditions.length>0).map(char => (
+                <div style={S.sec}>&mdash; CONDICIONES &mdash;</div>
+                {characters.every(c => !c.conditions || c.conditions.length===0) ? (
+                  <div style={{ color:"#4a5a4a", fontSize:11 }}>[ NINGUNA ]</div>
+                ) : characters.filter(c => c.conditions && c.conditions.length>0).map(char => (
                   <div key={char.id} style={{ marginBottom:8 }}>
                     <div style={{ color:char.type==="PC"?"#00BFFF":"#FF00FF", fontSize:11, marginBottom:3 }}>{char.name}</div>
                     <div style={{ display:"flex", flexWrap:"wrap" }}>
@@ -920,7 +956,6 @@
                 ))}
               </div>
             </div>
-
           </div>
 
           {condModal && <ConditionModal condModal={condModal} setCondModal={setCondModal}
@@ -931,7 +966,10 @@
       );
     }
 
-    function App() { return IS_PLAYER ? <PlayerView /> : <GMView />; }
+    function App() {
+      if (!window.firebaseOk) return <FirebaseError />;
+      return IS_PLAYER ? <PlayerView /> : <GMView />;
+    }
     ReactDOM.createRoot(document.getElementById("root")).render(<App />);
   </script>
 </body>
