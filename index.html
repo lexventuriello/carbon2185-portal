@@ -362,7 +362,6 @@ body.light .mobile-menu a,body.light .mobile-menu button{border-bottom-color:rgb
     <li><a href="#" onclick="goHome();return false;">Inicio</a></li>
     <li><a href="#" onclick="showView('personajes');return false;">⚔ Personajes</a></li>
     <li><a href="#" onclick="scrollSec('Bitacoras');return false;">Bitácoras</a></li>
-    <li><a href="#" onclick="showTracker();return false;">⚡ Tracker</a></li>
     <li><a href="#" onclick="showView('enemigos');return false;">☠ Enemigos</a></li>
     <li><a href="#" onclick="showView('aliados');return false;">◎ Aliados</a></li>
     <li><a href="#" onclick="showView('lugares');return false;">⬡ Lugares</a></li>
@@ -386,7 +385,6 @@ body.light .mobile-menu a,body.light .mobile-menu button{border-bottom-color:rgb
   <a href="#" onclick="goHome();closeMobileMenu();return false;">◈ Inicio</a>
   <a href="#" onclick="showView('personajes');closeMobileMenu();return false;">⚔ Personajes</a>
   <a href="#" onclick="scrollSec('Bitacoras');closeMobileMenu();return false;">◎ Bitácoras</a>
-  <a href="#" onclick="showTracker();closeMobileMenu();return false;">⚡ Tracker de Iniciativa</a>
   <a href="#" onclick="showView('enemigos');closeMobileMenu();return false;">☠ Enemigos</a>
   <a href="#" onclick="showView('aliados');closeMobileMenu();return false;">◎ Aliados</a>
   <a href="#" onclick="showView('lugares');closeMobileMenu();return false;">⬡ Lugares</a>
@@ -464,10 +462,6 @@ body.light .mobile-menu a,body.light .mobile-menu button{border-bottom-color:rgb
       <a href="https://www.dragonturtlegames.com" target="_blank" class="resource-card">
         <div class="resource-icon">🐢</div><div class="resource-name">Dragon Turtle Games</div>
         <div class="resource-desc">Sitio oficial del sistema Carbon 2185.</div><span class="resource-arrow">↗</span>
-      </a>
-      <a href="#" onclick="showTracker();return false;" class="resource-card" style="border-color:rgba(57,255,20,0.25);">
-        <div class="resource-icon">⚡</div><div class="resource-name" style="color:var(--green);">Tracker de Iniciativa</div>
-        <div class="resource-desc">Gestión de turno, HP y condiciones en combate. Vista de jugadores incluida.</div><span class="resource-arrow" style="color:var(--green);">↗</span>
       </a>
     </div>
   </section>
@@ -583,10 +577,6 @@ body.light .mobile-menu a,body.light .mobile-menu button{border-bottom-color:rgb
   </div>
 </div>
 
-<!-- TRACKER -->
-<div class="view" id="viewTracker" style="padding-top:56px;">
-  <iframe id="trackerFrame" src="" style="width:100%;height:calc(100vh - 56px);border:none;display:block;"></iframe>
-</div>
 
 
 <!-- ENEMIGOS -->
@@ -870,20 +860,6 @@ function E(s){if(!s)return '';return String(s).replace(/&/g,'&amp;').replace(/</
 function toast(msg,isErr=false){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show'+(isErr?' err':'');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),3000);}
 
 
-
-// ── TRACKER ──────────────────────────────────────────
-function showTracker() {
-  if (!user) return;
-  const frame = document.getElementById('trackerFrame');
-  if (user.isGM) {
-    frame.src = 'InitiativeTracker.html';
-  } else {
-    // Limpia la identidad guardada para que cada jugador elija su personaje
-    localStorage.removeItem('carbon2185_me');
-    frame.src = 'InitiativeTracker.html?view=player';
-  }
-  showView('tracker');
-}
 
 
 // ── WORLD ENTRIES (Supabase) ───────────────────────────────
