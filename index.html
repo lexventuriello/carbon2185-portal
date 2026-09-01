@@ -660,6 +660,45 @@ body.light .mobile-menu a,body.light .mobile-menu button{border-bottom-color:rgb
   </div>
 </div>
 
+
+<!-- MODAL EDITAR BITÁCORA -->
+<div class="world-modal-bg" id="sesModalBg" onclick="if(event.target===this)closeSesModal()">
+  <div class="world-modal">
+    <h3 id="sesModalTitle">EDITAR BITÁCORA</h3>
+    <input type="hidden" id="sesModalId" />
+    <div>
+      <label for="sesModalNum">Número</label>
+      <input id="sesModalNum" placeholder="SES // 001" />
+    </div>
+    <div>
+      <label for="sesModalDate">Fecha / Ref</label>
+      <input id="sesModalDate" placeholder="Sesión 1" />
+    </div>
+    <div>
+      <label for="sesModalTitle2">Título</label>
+      <input id="sesModalTitle2" placeholder="Título de la sesión" />
+    </div>
+    <div>
+      <label for="sesModalContent">Resumen</label>
+      <textarea id="sesModalContent" rows="5" placeholder="Resumen de la sesión..."></textarea>
+    </div>
+    <div>
+      <label for="sesModalTags">Etiquetas (separar con coma)</label>
+      <input id="sesModalTags" placeholder="Combate, Hackeo" />
+    </div>
+    <div>
+      <label>Imagen (opcional)</label>
+      <img id="sesModalImgCurrent" class="modal-current-img" style="display:none;" alt="imagen actual" />
+      <input type="file" id="sesModalImage" class="modal-img-input" accept="image/*" onchange="previewModalImg(this,'sesModalImgPreview')" />
+      <img id="sesModalImgPreview" class="modal-img-preview" alt="previsualización" />
+    </div>
+    <div class="world-modal-actions">
+      <button class="world-card-btn" style="border-color:var(--text-dim);color:var(--text-dim);" onclick="closeSesModal()">Cancelar</button>
+      <button class="world-card-btn" id="sesModalSaveBtn" style="border-color:var(--cyan);color:var(--cyan);" onclick="updateSession()">◈ Guardar</button>
+    </div>
+  </div>
+</div>
+
 <!-- GM PANEL -->
 <div class="view" id="viewGm">
   <div class="page-wide fadein">
@@ -813,7 +852,7 @@ function renderSessions(){
         ${imgHtml}
         ${s.content.split('\n').filter(p=>p.trim()).map(p=>`<p>${E(p)}</p>`).join('')}
         <div class="session-tags">${tags}</div>
-        ${user?.isGM?`<div style="margin-top:1rem"><button class="btn btn-danger btn-xs" onclick="event.stopPropagation();delSession(${s.id})">✕ Eliminar</button></div>`:''}
+        ${user?.isGM?`<div style="margin-top:1rem;display:flex;gap:0.5rem;"><button class="btn btn-secondary btn-xs" onclick="event.stopPropagation();openSesModal(${s.id})">✎ Editar</button><button class="btn btn-danger btn-xs" onclick="event.stopPropagation();delSession(${s.id})">✕ Eliminar</button></div>`:''}
       </div>`;
     list.appendChild(item);
   });
@@ -1058,6 +1097,49 @@ function updateThemeBtn(isLight){
   const saved=localStorage.getItem('c2185_theme');
   if(saved==='light'){document.body.classList.add('light');updateThemeBtn(true);}
 })();
+
+// ── SESSION EDIT MODAL ─────────────────────────────────────
+function openSesModal(id){
+  const s=sessions.find(x=>x.id===id);if(!s)return;
+  document.getElementById('sesModalId').value=id;
+  document.getElementById('sesModalNum').value=s.num||'';
+  document.getElementById('sesModalDate').value=s.date_ref||'';
+  document.getElementById('sesModalTitle2').value=s.title||'';
+  document.getElementById('sesModalContent').value=s.content||'';
+  document.getElementById('sesModalTags').value=s.tags||'';
+  const prev=document.getElementById('sesModalImgPreview');prev.style.display='none';prev.src='';
+  document.getElementById('sesModalImage').value='';
+  const cur=document.getElementById('sesModalImgCurrent');
+  if(s.image_url){cur.src=s.image_url;cur.style.display='block';}else{cur.style.display='none';cur.src='';}
+  document.getElementById('sesModalBg').classList.add('open');
+  setTimeout(()=>document.getElementById('sesModalTitle2').focus(),60);
+}
+function closeSesModal(){document.getElementById('sesModalBg').classList.remove('open');}
+
+async function updateSession(){
+  const id=parseInt(document.getElementById('sesModalId').value);
+  const num=document.getElementById('sesModalNum').value.trim();
+  const date_ref=document.getElementById('sesModalDate').value.trim();
+  const title=document.getElementById('sesModalTitle2').value.trim()||'Sin título';
+  const content=document.getElementById('sesModalContent').value.trim();
+  const tags=document.getElementById('sesModalTags').value.trim();
+  const saveBtn=document.getElementById('sesModalSaveBtn');
+  saveBtn.textContent='Guardando...';saveBtn.disabled=true;
+  const payload={num,date_ref,title,content,tags};
+  const imgFile=document.getElementById('sesModalImage').files[0];
+  if(imgFile){
+    toast('Subiendo imagen...');
+    const url=await uploadImage(imgFile);
+    if(url) payload.image_url=url;
+    else{saveBtn.textContent='◈ Guardar';saveBtn.disabled=false;return;}
+  }
+  const{error}=await sb.from('sessions').update(payload).eq('id',id);
+  saveBtn.textContent='◈ Guardar';saveBtn.disabled=false;
+  if(error){toast('Error: '+error.message,true);return;}
+  closeSesModal();
+  await loadSessions();
+  toast('Bitácora actualizada');
+}
 </script>
 </body>
 </html>
