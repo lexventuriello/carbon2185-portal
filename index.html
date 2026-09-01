@@ -351,6 +351,9 @@ body.light .mobile-menu a,body.light .mobile-menu button{border-bottom-color:rgb
 @media(min-width:761px){
   .mob-theme-only{display:none;}
 }
+
+.char-edit-btn{position:absolute;top:10px;right:10px;z-index:2;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;background:rgba(12,28,39,0.85);border:1px solid var(--cyan);color:var(--cyan);padding:3px 9px;cursor:pointer;transition:background 0.2s;}
+.char-edit-btn:hover{background:rgba(0,245,255,0.1);}
 </style>
 </head>
 <body>
@@ -1147,12 +1150,12 @@ async function loadCharacters(){
 
 function renderCharacters(){
   const grid=document.getElementById('charGrid');if(!grid)return;
-  if(!charData.length){grid.innerHTML='<div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--text-dim);padding:1rem;">// Sin personajes registrados.</div>';return;}
+  if(!charData.length){grid.innerHTML='<div class="world-empty">// Sin personajes registrados.</div>';return;}
   grid.innerHTML=charData.map(c=>{
     const col=CHAR_COLORS[c.color||'cyan'];
     const loreParas=(c.lore||'').split('\n\n').filter(p=>p.trim()).map(p=>'<p class="char-lore">'+E(p)+'</p>').join('');
     const imgHtml=c.image_url?'<div class="char-img-wrap"><img class="char-img" src="'+E(c.image_url)+'" alt="'+E(c.name)+'" loading="lazy" /></div>':'';
-    const editBtn=user&&user.isGM?'<button onclick="openCharModal('+c.id+')" style="position:absolute;top:10px;right:10px;z-index:2;font-family:'Share Tech Mono',monospace;font-size:10px;letter-spacing:1px;background:rgba(12,28,39,0.85);border:1px solid var(--cyan);color:var(--cyan);padding:3px 9px;cursor:pointer;">✎ Editar</button>':'';
+    const editBtn=user&&user.isGM?'<button class="char-edit-btn" onclick="openCharModal('+c.id+')">✎ Editar</button>':'';
     return '<div class="char-card" style="border-color:'+col.border+';position:relative;">'
       +editBtn
       +imgHtml
