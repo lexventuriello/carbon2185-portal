@@ -307,6 +307,16 @@ nav{position:fixed;top:0;left:0;right:0;z-index:1000;background:rgba(5,10,14,0.9
 body.light .world-modal{background:var(--panel);}
 body.light .world-modal input,body.light .world-modal textarea{background:var(--panel2);color:var(--text);}
 @media(max-width:600px){.world-card-grid{grid-template-columns:1fr;}.world-view-wrap{padding:76px 1rem 3rem;}}
+/* ── IMAGES ── */
+.world-card-img{width:100%;height:170px;object-fit:cover;display:block;border-bottom:1px solid var(--border);filter:grayscale(15%) contrast(1.1);transition:filter 0.3s;}
+.world-card:hover .world-card-img{filter:grayscale(0%) contrast(1.05);}
+.modal-img-input{width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text-dim);font-family:'Share Tech Mono',monospace;font-size:11px;padding:7px 10px;cursor:pointer;margin-bottom:8px;}
+.modal-img-input::-webkit-file-upload-button{background:transparent;border:1px solid var(--border);color:var(--cyan-dim);font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:1px;padding:4px 10px;cursor:pointer;margin-right:10px;}
+.modal-img-preview{width:100%;height:110px;object-fit:cover;display:none;margin-bottom:14px;border:1px solid var(--border);}
+.modal-current-img{width:100%;height:90px;object-fit:cover;margin-bottom:10px;border:1px solid var(--border);opacity:0.75;}
+.session-img{max-width:100%;max-height:280px;object-fit:cover;margin-top:1rem;border:1px solid var(--border);display:block;}
+.session-img-input{width:100%;background:var(--panel2);border:1px solid var(--border);color:var(--text-dim);font-family:'Share Tech Mono',monospace;font-size:11px;padding:7px 10px;cursor:pointer;}
+.session-img-input::-webkit-file-upload-button{background:transparent;border:1px solid var(--border);color:var(--cyan-dim);font-family:'Share Tech Mono',monospace;font-size:11px;letter-spacing:1px;padding:4px 10px;cursor:pointer;margin-right:10px;}
 footer{position:relative;z-index:1;border-top:1px solid var(--border);padding:2rem;text-align:center;font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text-dim);letter-spacing:2px;text-transform:uppercase;}
 footer span{color:var(--cyan-dim);}
 /* ── NAV DROPDOWN (desktop + mobile) ── */
@@ -442,6 +452,7 @@ body.light .mobile-menu a,body.light .mobile-menu button{border-bottom-color:rgb
         <div class="form-group"><label class="form-label">Título</label><input class="form-input" id="sTitle"></div>
         <div class="form-group"><label class="form-label">Resumen</label><textarea class="form-textarea" id="sContent" rows="4"></textarea></div>
         <div class="form-group"><label class="form-label">Etiquetas (separar con coma)</label><input class="form-input" id="sTags" placeholder="Combate, Hackeo"></div>
+        <div class="form-group"><label class="form-label">Imagen (opcional)</label><input type="file" id="sImg" class="session-img-input" accept="image/*" /></div>
         <button class="btn btn-primary" onclick="publishSession()">◈ Publicar Bitácora</button>
       </div>
     </div>
@@ -586,7 +597,7 @@ body.light .mobile-menu a,body.light .mobile-menu button{border-bottom-color:rgb
     <h2 class="section-title">Enemigos <span class="hi">Activos</span></h2>
     <div class="world-toolbar">
       <div id="enemCount" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text-dim);letter-spacing:2px;"></div>
-      <button class="world-add-btn" onclick="openWorldModal('enemy')">+ Nuevo Enemigo</button>
+      <button class="world-add-btn" id="btnAddEnemy" style="display:none;" onclick="openWorldModal('enemy')">+ Nuevo Enemigo</button>
     </div>
     <div class="world-card-grid" id="enemGrid"><div class="world-empty">// Sin registros</div></div>
   </div>
@@ -599,7 +610,7 @@ body.light .mobile-menu a,body.light .mobile-menu button{border-bottom-color:rgb
     <h2 class="section-title">Aliados <span class="hi" style="color:var(--green);">y Contactos</span></h2>
     <div class="world-toolbar">
       <div id="aliCount" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text-dim);letter-spacing:2px;"></div>
-      <button class="world-add-btn" style="border-color:var(--green);color:var(--green);" onclick="openWorldModal('ally')">+ Nuevo Aliado</button>
+      <button class="world-add-btn" id="btnAddAlly" style="display:none;border-color:var(--green);color:var(--green);" onclick="openWorldModal('ally')">+ Nuevo Aliado</button>
     </div>
     <div class="world-card-grid" id="aliGrid"><div class="world-empty">// Sin registros</div></div>
   </div>
@@ -612,7 +623,7 @@ body.light .mobile-menu a,body.light .mobile-menu button{border-bottom-color:rgb
     <h2 class="section-title">Lugares <span class="hi" style="color:var(--amber);">y Distritos</span></h2>
     <div class="world-toolbar">
       <div id="lugCount" style="font-family:'Share Tech Mono',monospace;font-size:11px;color:var(--text-dim);letter-spacing:2px;"></div>
-      <button class="world-add-btn" style="border-color:var(--amber);color:var(--amber);" onclick="openWorldModal('place')">+ Nuevo Lugar</button>
+      <button class="world-add-btn" id="btnAddPlace" style="display:none;border-color:var(--amber);color:var(--amber);" onclick="openWorldModal('place')">+ Nuevo Lugar</button>
     </div>
     <div class="world-card-grid" id="lugGrid"><div class="world-empty">// Sin registros</div></div>
   </div>
@@ -635,6 +646,12 @@ body.light .mobile-menu a,body.light .mobile-menu button{border-bottom-color:rgb
     <div>
       <label for="worldModalDetails">Detalles</label>
       <textarea id="worldModalDetails" rows="5" placeholder="Descripción, notas, historia..."></textarea>
+    </div>
+    <div>
+      <label>Imagen (opcional)</label>
+      <img id="worldModalImgCurrent" class="modal-current-img" style="display:none;" alt="imagen actual" />
+      <input type="file" id="worldModalImage" class="modal-img-input" accept="image/*" onchange="previewModalImg(this,'worldModalImgPreview')" />
+      <img id="worldModalImgPreview" class="modal-img-preview" alt="previsualización" />
     </div>
     <div class="world-modal-actions">
       <button class="world-card-btn" style="border-color:var(--text-dim);color:var(--text-dim);" onclick="closeWorldModal()">Cancelar</button>
@@ -661,6 +678,7 @@ body.light .mobile-menu a,body.light .mobile-menu button{border-bottom-color:rgb
           <div class="form-group"><label class="form-label">Título</label><input class="form-input" id="gTitle"></div>
           <div class="form-group"><label class="form-label">Resumen</label><textarea class="form-textarea" id="gContent" rows="4"></textarea></div>
           <div class="form-group"><label class="form-label">Etiquetas</label><input class="form-input" id="gTags" placeholder="Combate, Revelación"></div>
+          <div class="form-group"><label class="form-label">Imagen (opcional)</label><input type="file" id="gImg" class="session-img-input" accept="image/*" /></div>
           <button class="btn btn-primary btn-sm" onclick="gmPublishSession()">◈ Publicar</button>
         </div>
       </div>
@@ -735,6 +753,7 @@ async function afterLogin(){
     document.getElementById('navGMLink').style.display='block';
     document.getElementById('mobileGMLink').style.display='block';
     document.getElementById('addSesBtn')&&(document.getElementById('addSesBtn').style.display='block');
+    ['btnAddEnemy','btnAddAlly','btnAddPlace'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='';});
   }
   await loadSessions();
   await loadWorldEntries();
@@ -787,9 +806,11 @@ function renderSessions(){
     const tags=(s.tags||'').split(',').map((t,i)=>t.trim()?`<span class="tag ${tc[i%4]}">${E(t.trim())}</span>`:'').join('');
     const item=document.createElement('div');item.className='session-item';
     item.onclick=function(){this.classList.toggle('open');};
+    const imgHtml=s.image_url?`<img class="session-img" src="${E(s.image_url)}" alt="imagen de sesión" loading="lazy" />`:'';
     item.innerHTML=`
       <div class="session-header"><span class="session-num">${E(s.num)}</span><span class="session-title-text">${E(s.title)}</span><span class="session-date">${E(s.date_ref)}</span><span class="session-chevron">▶</span></div>
       <div class="session-body">
+        ${imgHtml}
         ${s.content.split('\n').filter(p=>p.trim()).map(p=>`<p>${E(p)}</p>`).join('')}
         <div class="session-tags">${tags}</div>
         ${user?.isGM?`<div style="margin-top:1rem"><button class="btn btn-danger btn-xs" onclick="event.stopPropagation();delSession(${s.id})">✕ Eliminar</button></div>`:''}
@@ -807,9 +828,13 @@ async function publishSession(){
   const d=document.getElementById('sDate').value||'';
   const c=document.getElementById('sContent').value||'';
   const tg=document.getElementById('sTags').value||'';
-  const{error}=await sb.from('sessions').insert({num:n,title:t,date_ref:d,content:c,tags:tg});
+  const payload={num:n,title:t,date_ref:d,content:c,tags:tg};
+  const imgFile=document.getElementById('sImg').files[0];
+  if(imgFile){toast('Subiendo imagen...');const url=await uploadImage(imgFile);if(url)payload.image_url=url;}
+  const{error}=await sb.from('sessions').insert(payload);
   if(error){toast('Error: '+error.message,true);return;}
   ['sNum','sTitle','sDate','sContent','sTags'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('sImg').value='';
   document.getElementById('addSesForm')?.classList.remove('visible');
   toast('Bitácora publicada');
 }
@@ -819,9 +844,13 @@ async function gmPublishSession(){
   const d=document.getElementById('gDate').value||'';
   const c=document.getElementById('gContent').value||'';
   const tg=document.getElementById('gTags').value||'';
-  const{error}=await sb.from('sessions').insert({num:n,title:t,date_ref:d,content:c,tags:tg});
+  const payload={num:n,title:t,date_ref:d,content:c,tags:tg};
+  const imgFile=document.getElementById('gImg').files[0];
+  if(imgFile){toast('Subiendo imagen...');const url=await uploadImage(imgFile);if(url)payload.image_url=url;}
+  const{error}=await sb.from('sessions').insert(payload);
   if(error){toast('Error: '+error.message,true);return;}
   ['gNum','gTitle','gDate','gContent','gTags'].forEach(id=>document.getElementById(id).value='');
+  document.getElementById('gImg').value='';
   document.getElementById('gmSesForm')?.classList.remove('visible');
   toast('Bitácora publicada');renderGMPanel();
 }
@@ -858,6 +887,25 @@ function renderGMPanel(){
 // ── UTILS ─────────────────────────────────────────────────
 function E(s){if(!s)return '';return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}
 function toast(msg,isErr=false){const t=document.getElementById('toast');t.textContent=msg;t.className='toast show'+(isErr?' err':'');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('show'),3000);}
+
+// ── IMAGE UPLOAD ───────────────────────────────────────────
+async function uploadImage(file,bucket='portal-images'){
+  const ext=file.name.split('.').pop().toLowerCase();
+  const safe=['jpg','jpeg','png','gif','webp','avif'];
+  if(!safe.includes(ext)){toast('Formato no soportado',true);return null;}
+  const path=Date.now()+'-'+Math.random().toString(36).slice(2)+'.'+ext;
+  const{error}=await sb.storage.from(bucket).upload(path,file,{upsert:false,contentType:file.type});
+  if(error){toast('Error al subir imagen: '+error.message,true);return null;}
+  const{data}=sb.storage.from(bucket).getPublicUrl(path);
+  return data.publicUrl;
+}
+function previewModalImg(input,previewId){
+  const prev=document.getElementById(previewId);if(!prev)return;
+  const file=input.files[0];
+  if(!file){prev.style.display='none';return;}
+  const url=URL.createObjectURL(file);
+  prev.src=url;prev.style.display='block';
+}
 
 
 
@@ -897,7 +945,9 @@ function renderWorldView(type){
   if(!list.length){grid.innerHTML='<div class="world-empty">// Sin registros</div>';return;}
   grid.innerHTML=list.map(e=>{
     const dist=e.district?'<div class="world-card-badge" style="border-color:'+cfg.color+'44;color:'+cfg.color+'">'+E(e.district)+'</div>':'';
+    const imgHtml=e.image_url?'<img class="world-card-img" src="'+E(e.image_url)+'" alt="'+E(e.name)+'" loading="lazy" />':'';
     return '<div class="world-card" style="border-color:'+cfg.color+'44;">'
+      +imgHtml
       +'<div class="world-card-top">'
       +'<div class="world-card-type" style="color:'+cfg.color+'">// '+cfg.label+'</div>'
       +'<div class="world-card-name">'+E(e.name)+'</div>'
@@ -906,8 +956,8 @@ function renderWorldView(type){
       +'<hr class="world-card-divider">'
       +'<div class="world-card-body">'+E(e.details||'Sin detalles.')+'</div>'
       +'<div class="world-card-actions">'
-      +'<button class="world-card-btn" style="border-color:var(--cyan);color:var(--cyan);" onclick="openWorldModal(\''+type+'\','+e.id+')">✎ Editar</button>'
-      +'<button class="world-card-btn" style="border-color:var(--red);color:var(--red);" onclick="deleteWorldEntry('+e.id+',\''+type+'\')">✕</button>'
+      +(user?.isGM?'<button class="world-card-btn" style="border-color:var(--cyan);color:var(--cyan);" onclick="openWorldModal(\''+type+'\','+e.id+')">✎ Editar</button>':'')
+      +(user?.isGM?'<button class="world-card-btn" style="border-color:var(--red);color:var(--red);" onclick="deleteWorldEntry('+e.id+',\''+type+'\')">✕</button>':'')
       +'</div>'
       +'</div>';
   }).join('');
@@ -926,6 +976,11 @@ function openWorldModal(type, id){
   document.getElementById('worldModalDistrict').value=entry.district||'';
   document.getElementById('worldModalDetails').value=entry.details||'';
   document.getElementById('worldModalDistrictWrap').style.display=type==='place'?'block':'none';
+  // Reset image inputs
+  document.getElementById('worldModalImage').value='';
+  const prev=document.getElementById('worldModalImgPreview');prev.style.display='none';prev.src='';
+  const cur=document.getElementById('worldModalImgCurrent');
+  if(entry.image_url){cur.src=entry.image_url;cur.style.display='block';}else{cur.style.display='none';cur.src='';}
   const TITLES={enemy:'ENEMIGO',ally:'ALIADO',place:'LUGAR'};
   document.getElementById('worldModalTitle').textContent=(isNew?'NUEVO ':'EDITAR ')+TITLES[type];
   document.getElementById('worldModalBg').classList.add('open');
@@ -942,14 +997,26 @@ async function saveWorldEntry(){
   const details=document.getElementById('worldModalDetails').value.trim();
   if(!name){document.getElementById('worldModalName').style.borderColor='var(--red)';return;}
   document.getElementById('worldModalName').style.borderColor='';
+  const saveBtn=document.getElementById('worldModalSaveBtn');
+  saveBtn.textContent='Subiendo...';saveBtn.disabled=true;
+  // Upload image if selected
+  let image_url=undefined;
+  const imgFile=document.getElementById('worldModalImage').files[0];
+  if(imgFile){
+    const url=await uploadImage(imgFile);
+    if(url) image_url=url;
+    else{saveBtn.textContent='◈ Guardar';saveBtn.disabled=false;return;}
+  }
   const payload={type,name,details};
   if(type==='place') payload.district=district;
+  if(image_url!==undefined) payload.image_url=image_url;
   let error;
   if(idStr===''){
     ({error}=await sb.from('world_entries').insert(payload));
   } else {
     ({error}=await sb.from('world_entries').update(payload).eq('id',parseInt(idStr)));
   }
+  saveBtn.textContent='◈ Guardar';saveBtn.disabled=false;
   if(error){toast('Error: '+error.message,true);return;}
   closeWorldModal();
   await loadWorldEntries();
