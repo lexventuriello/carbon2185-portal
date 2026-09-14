@@ -515,6 +515,9 @@ body.light .mobile-menu a,body.light .mobile-menu button{border-bottom-color:rgb
     <div class="section-label">Enigma Collective</div>
     <h2 class="section-title">Los <span class="hi">Personajes</span></h2>
     <div style="display:grid;grid-template-columns:repeat(auto-fit,minmax(280px,1fr));gap:1.5rem;margin-top:0.5rem;" id="charGrid"><div style="font-family:'Share Tech Mono',monospace;font-size:12px;color:var(--text-dim);padding:1rem;">// Cargando personajes...</div></div>
+    <div id="addCharBtn" style="display:none;margin-top:1.5rem;">
+      <button class="btn btn-secondary" onclick="openCharModal(null)">+ Nuevo Personaje</button>
+    </div>
     <div style="text-align:center;margin-top:2.5rem;">
       <button class="btn btn-secondary" onclick="goHome()">◄ Volver al inicio</button>
     </div>
@@ -780,9 +783,10 @@ async function afterLogin(){
   if(user.isGM){
     document.getElementById('navGMLink').style.display='block';
     document.getElementById('mobileGMLink').style.display='block';
-    document.getElementById('addSesBtn')&&(document.getElementById('addSesBtn').style.display='block');
-    ['btnAddEnemy','btnAddAlly','btnAddPlace'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='';});
   }
+  // Todos los usuarios (GM y jugadores) pueden crear y editar entradas
+  document.getElementById('addSesBtn')&&(document.getElementById('addSesBtn').style.display='block');
+  ['btnAddEnemy','btnAddAlly','btnAddPlace','addCharBtn'].forEach(id=>{const el=document.getElementById(id);if(el)el.style.display='';});
   await loadSessions();
   await loadWorldEntries();
   await loadCharacters();
@@ -843,7 +847,7 @@ function renderSessions(){
         ${imgHtml}
         ${s.content.split('\n').filter(p=>p.trim()).map(p=>`<p>${E(p)}</p>`).join('')}
         <div class="session-tags">${tags}</div>
-        ${user?.isGM?`<div style="margin-top:1rem;display:flex;gap:0.5rem;"><button class="btn btn-secondary btn-xs" onclick="event.stopPropagation();openSesModal(${s.id})">✎ Editar</button><button class="btn btn-danger btn-xs" onclick="event.stopPropagation();delSession(${s.id})">✕ Eliminar</button></div>`:''}
+        ${user?`<div style="margin-top:1rem;display:flex;gap:0.5rem;"><button class="btn btn-secondary btn-xs" onclick="event.stopPropagation();openSesModal(${s.id})">✎ Editar</button>${user.isGM?`<button class="btn btn-danger btn-xs" onclick="event.stopPropagation();delSession(${s.id})">✕ Eliminar</button>`:''}</div>`:''}
       </div>`;
     list.appendChild(item);
   });
@@ -986,7 +990,7 @@ function renderWorldView(type){
       +'<hr class="world-card-divider">'
       +'<div class="world-card-body">'+E(e.details||'Sin detalles.')+'</div>'
       +'<div class="world-card-actions">'
-      +(user?.isGM?'<button class="world-card-btn" style="border-color:var(--cyan);color:var(--cyan);" onclick="openWorldModal(\''+type+'\','+e.id+')">✎ Editar</button>':'')
+      +(user?'<button class="world-card-btn" style="border-color:var(--cyan);color:var(--cyan);" onclick="openWorldModal(\''+type+'\','+e.id+')">✎ Editar</button>':'')
       +(user?.isGM?'<button class="world-card-btn" style="border-color:var(--red);color:var(--red);" onclick="deleteWorldEntry('+e.id+',\''+type+'\')">✕</button>':'')
       +'</div>'
       +'</div>';
@@ -1155,7 +1159,7 @@ function renderCharacters(){
     const col=CHAR_COLORS[c.color||'cyan'];
     const loreParas=(c.lore||'').split('\n\n').filter(p=>p.trim()).map(p=>'<p class="char-lore">'+E(p)+'</p>').join('');
     const imgHtml=c.image_url?'<div class="char-img-wrap"><img class="char-img" src="'+E(c.image_url)+'" alt="'+E(c.name)+'" loading="lazy" /></div>':'';
-    const editBtn=user&&user.isGM?'<button class="char-edit-btn" onclick="openCharModal('+c.id+')">✎ Editar</button>':'';
+    const editBtn=user?'<button class="char-edit-btn" onclick="openCharModal('+c.id+')">✎ Editar</button>':'';
     return '<div class="char-card" style="border-color:'+col.border+';position:relative;">'
       +editBtn
       +imgHtml
@@ -1172,8 +1176,11 @@ function renderCharacters(){
 }
 
 function openCharModal(id){
-  const c=charData.find(x=>x.id===id);if(!c)return;
-  document.getElementById('charModalId').value=id;
+  const isNew=(id===null||id===undefined);
+  const c=isNew?{}:(charData.find(x=>x.id===id)||{});
+  if(!isNew&&!charData.find(x=>x.id===id))return;
+  document.getElementById('charModalId').value=isNew?'':String(id);
+  document.querySelector('#charModalBg h3').textContent=isNew?'NUEVO PERSONAJE':'EDITAR PERSONAJE';
   document.getElementById('charModalName').value=c.name||'';
   document.getElementById('charModalCode').value=c.code||'';
   document.getElementById('charModalRole').value=c.role||'';
@@ -1191,7 +1198,8 @@ function openCharModal(id){
 function closeCharModal(){document.getElementById('charModalBg').classList.remove('open');}
 
 async function saveCharacter(){
-  const id=parseInt(document.getElementById('charModalId').value);
+  const idStr=document.getElementById('charModalId').value;
+  const isNew=(idStr==='');
   const saveBtn=document.getElementById('charModalSaveBtn');
   saveBtn.textContent='Guardando...';saveBtn.disabled=true;
   const payload={
@@ -1211,12 +1219,17 @@ async function saveCharacter(){
     if(url) payload.image_url=url;
     else{saveBtn.textContent='◈ Guardar';saveBtn.disabled=false;return;}
   }
-  const{error}=await sb.from('party_cards').update(payload).eq('id',id);
+  let error;
+  if(isNew){
+    ({error}=await sb.from('party_cards').insert(payload));
+  } else {
+    ({error}=await sb.from('party_cards').update(payload).eq('id',parseInt(idStr)));
+  }
   saveBtn.textContent='◈ Guardar';saveBtn.disabled=false;
   if(error){toast('Error: '+error.message,true);return;}
   closeCharModal();
   await loadCharacters();
-  toast('Personaje actualizado');
+  toast(isNew?'Personaje creado':'Personaje actualizado');
 }
 </script>
 </body>
